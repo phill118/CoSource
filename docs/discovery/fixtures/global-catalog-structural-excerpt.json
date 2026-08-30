@@ -1,0 +1,96 @@
+{
+  "fixture_notice": {
+    "captured_on": "2026-08-30",
+    "source": "Live anonymous Shopify Global Catalog read-only calls",
+    "context": {
+      "address_country": "GB",
+      "currency": "GBP"
+    },
+    "sanitisation": "Long third-party descriptions, media URLs, policy URLs, and transient tracking query parameters omitted. IDs and commerce field shapes retained for architecture review.",
+    "not_for_runtime_use": true
+  },
+  "negotiated_ucp": {
+    "version": "2026-04-08",
+    "capabilities": [
+      "dev.ucp.shopping.catalog.search",
+      "dev.ucp.shopping.catalog.lookup",
+      "dev.shopify.catalog.global"
+    ],
+    "status": "success"
+  },
+  "lookup_excerpt": {
+    "product": {
+      "id": "gid://shopify/p/3E7RET7UBEbf9e8VvnLIBJ",
+      "title": "Women's Treeline Micro Crew Midweight Hiking Sock",
+      "variants": [
+        {
+          "id": "gid://shopify/ProductVariant/39797784444986",
+          "price": { "amount": 2000, "currency": "GBP" },
+          "availability": { "available": true },
+          "seller": {
+            "id": "gid://shopify/Shop/3561477",
+            "name": "Tootsies Rockridge & Crush on College"
+          },
+          "inputs": [
+            {
+              "id": "gid://shopify/p/3E7RET7UBEbf9e8VvnLIBJ",
+              "match": "featured"
+            }
+          ]
+        },
+        {
+          "id": "gid://shopify/ProductVariant/42648730042558",
+          "price": { "amount": 2900, "currency": "GBP" },
+          "availability": { "available": true },
+          "seller": {
+            "id": "gid://shopify/Shop/52730036414",
+            "name": "Darn Tough UK"
+          },
+          "checkout_url_shape": "https://{merchant-domain}/cart/{variant-id}:1",
+          "condition": ["new"],
+          "eligible": { "native_checkout": false },
+          "inputs": [
+            {
+              "id": "gid://shopify/p/3E7RET7UBEbf9e8VvnLIBJ",
+              "match": "featured"
+            },
+            {
+              "id": "gid://shopify/ProductVariant/42648730042558",
+              "match": "exact"
+            }
+          ]
+        }
+      ],
+      "price_range": {
+        "min": { "amount": 2000, "currency": "GBP" },
+        "max": { "amount": 2900, "currency": "GBP" }
+      }
+    },
+    "messages": [
+      {
+        "type": "info",
+        "code": "not_found",
+        "content": "gid://shopify/ProductVariant/999999999999999"
+      }
+    ]
+  },
+  "filter_messages_excerpt": [
+    {
+      "type": "info",
+      "code": "not_found",
+      "path": "$.filters.attributes[0]",
+      "content": "Unsupported attribute was ignored; supported names were Color, Size, Target gender."
+    },
+    {
+      "type": "info",
+      "code": "price_filter_applied",
+      "path": "$.filters.price",
+      "content": "Price filtering was applied on a USD basis; returned prices were contextualized and could differ."
+    }
+  ],
+  "pagination_excerpt": {
+    "cursor": "opaque-cursor-redacted",
+    "has_next_page": true,
+    "total_count_is_estimate": true
+  }
+}
