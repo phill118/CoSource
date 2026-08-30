@@ -1,0 +1,12 @@
+.shell {
+  display: grid;
+  min-height: 100svh;
+  place-items: center;
+  padding: 2rem;
+}
+
+.intro { width: min(100%, 42rem); }
+.eyebrow { margin: 0 0 1rem; color: #356966; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; }
+h1 { margin: 0; color: #163b39; font-size: clamp(3rem, 10vw, 6.5rem); letter-spacing: -0.06em; line-height: 0.95; }
+.descriptor { margin: 1.5rem 0 0; color: #244846; font-size: clamp(1.25rem, 4vw, 1.75rem); line-height: 1.3; }
+.status { max-width: 34rem; margin: 2.5rem 0 0; padding-top: 1.5rem; border-top: 1px solid #cbd9d5; color: #506663; line-height: 1.7; }
