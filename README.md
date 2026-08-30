@@ -6,7 +6,7 @@ CoSource is intended to become a cross-merchant commerce intelligence and purcha
 
 ## Status
 
-This repository currently contains the frontend engineering foundation only. Commerce providers, product discovery, recommendation logic, purchasing workflows, and WebMCP integrations are not implemented.
+This repository contains the frontend engineering foundation and a tested, provider-independent commerce domain with a Shopify Global Catalog adapter. There is no product-search UI yet. Recommendation logic, purchasing workflows, and WebMCP integrations are not implemented.
 
 The project is being prepared for The WebMCP Challenge. Its architectural principle is: humans provide intent and final authority; CoSource supplies trusted application and commerce intelligence; an AI agent plans and collaborates; WebMCP provides the structured browser interface; and authorised commerce providers remain the source of external commerce data.
 
