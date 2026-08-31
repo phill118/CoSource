@@ -5,6 +5,8 @@ import type { ProductEvaluation } from '../evaluation/domain/product-evaluation'
 import { compareProductEvaluations } from '../comparison/compare-products'
 import { evaluatePurchasePlan, neutralOffer } from '../planning/evaluate-plan'
 import type { ModelContextLike, WebMCPActivity, WebMCPState } from './types'
+import { createPlanChangeProposal, proposalEffectiveStatus } from '../proposals/proposal-service'
+import type { PlanChangeProposal } from '../proposals/domain/plan-change-proposal'
 
 const providers=Object.values(COMMERCE_PROVIDERS),MAX_ID=500,MAX_PRODUCTS=50,MAX_LINES=100
 const emptySchema={type:'object',properties:{},additionalProperties:false}
@@ -37,7 +39,7 @@ function planEvaluationOutput(evaluation:ReturnType<typeof evaluatePurchasePlan>
 function exactEmpty(input:unknown){return Boolean(input&&typeof input==='object'&&!Array.isArray(input)&&Object.keys(input as object).length===0)}
 
 export function createReadTools(getState:()=>WebMCPState,onActivity:(activity:Omit<WebMCPActivity,'id'|'timestamp'>)=>void):WebMCPToolDefinition[]{
-  const wrap=(name:string,run:(input:unknown)=>unknown)=>async(input:unknown)=>{try{const result=run(input) as {ok?:boolean};onActivity({toolName:name,outcome:result?.ok===false?'failure':'success',summary:result?.ok===false?'Request could not be completed.':'Read completed.'});return result}catch{onActivity({toolName:name,outcome:'failure',summary:'Read failed safely.'});return fail('internal_error','The read tool could not complete the request.')}}
+  const wrap=(name:string,run:(input:unknown)=>unknown)=>async(input:unknown)=>{try{const result=run(input) as {ok?:boolean};onActivity({kind:'read_tool_call',toolName:name,outcome:result?.ok===false?'failure':'success',summary:result?.ok===false?'Request could not be completed.':'Read completed.'});return result}catch{onActivity({kind:'read_tool_call',toolName:name,outcome:'failure',summary:'Read failed safely.'});return fail('internal_error','The read tool could not complete the request.')}}
   const definition=(name:string,description:string,inputSchema:Record<string,unknown>,run:(input:unknown)=>unknown):WebMCPToolDefinition=>({name,description,inputSchema,execute:wrap(name,run),annotations:{readOnlyHint:true,untrustedContentHint:true}})
   return[
     definition('get_purchase_goal','Read the current validated CoSource purchase goal. Returns structured unavailability for an incomplete draft.',emptySchema,input=>{if(!exactEmpty(input))return fail('invalid_input','No input properties are accepted.');const goal=getState().goal;return goal?ok({id:goal.id,revision:goal.revision,summary:goal.summary,quantity:goal.quantity,budget:goal.budget,requirements:goal.requirements,preferences:goal.preferences,exclusions:goal.exclusions}):fail('no_validated_goal','No validated purchase goal is currently available.')}),
@@ -50,5 +52,26 @@ export function createReadTools(getState:()=>WebMCPState,onActivity:(activity:Om
   ]
 }
 
+const proposalIdentitySchema={...identitySchema}
+const operationSchema={oneOf:[
+  {type:'object',properties:{type:{const:'add_retained_product'},product:proposalIdentitySchema},required:['type','product'],additionalProperties:false},
+  {type:'object',properties:{type:{const:'remove_plan_line'},lineId:{type:'string',minLength:1,maxLength:MAX_ID}},required:['type','lineId'],additionalProperties:false},
+  {type:'object',properties:{type:{const:'set_quantity'},lineId:{type:'string',minLength:1,maxLength:MAX_ID},quantity:{type:'integer',minimum:1,maximum:100000}},required:['type','lineId','quantity'],additionalProperties:false},
+  {type:'object',properties:{type:{const:'select_merchant_offer'},lineId:{type:'string',minLength:1,maxLength:MAX_ID},offer:proposalIdentitySchema},required:['type','lineId'],additionalProperties:false},
+  {type:'object',properties:{type:{const:'rebase_to_current_goal'}},required:['type'],additionalProperties:false},
+]}
+const proposalSchema={type:'object',properties:{planId:{type:'string',minLength:1,maxLength:MAX_ID},planRevision:{type:'integer',minimum:0},goalId:{type:'string',minLength:1,maxLength:MAX_ID},goalRevision:{type:'integer',minimum:0},operations:{type:'array',minItems:1,maxItems:20,items:operationSchema},reason:{type:'string',minLength:1,maxLength:500}},required:['planId','planRevision','goalId','goalRevision','operations'],additionalProperties:false}
+function proposalOutput(proposal:PlanChangeProposal,state:WebMCPState){return{id:proposal.id,status:proposalEffectiveStatus(proposal,state),reason:clip(proposal.reason,500),expected:{planId:proposal.planId,planRevision:proposal.expectedPlanRevision,goalId:proposal.expectedGoalId,goalRevision:proposal.expectedGoalRevision},current:{planId:state.plan.id,planRevision:state.plan.revision,goalId:state.goal?.id,goalRevision:state.goal?.revision},operations:proposal.operations}}
+export function createProposalTools(getState:()=>WebMCPState,onProposal:(proposal:PlanChangeProposal)=>void,onActivity:(activity:Omit<WebMCPActivity,'id'|'timestamp'>)=>void,makeId:()=>string=()=>globalThis.crypto.randomUUID(),now=()=>new Date().toISOString()):WebMCPToolDefinition[]{
+  return[{
+    name:'propose_plan_changes',description:'Create a bounded agent proposal for human review. This changes proposal state only; it never changes the purchase plan or performs checkout.',inputSchema:proposalSchema,annotations:{readOnlyHint:false,untrustedContentHint:true},
+    execute:async(input)=>{const state=getState(),result=createPlanChangeProposal(input,state,makeId,now);if(!result.ok){onActivity({kind:'agent_proposal_created',toolName:'propose_plan_changes',outcome:'failure',summary:'Proposal validation failed.'});return{ok:false,error:{code:result.code,message:result.message},data:{current:result.context}}}onProposal(result.proposal);onActivity({kind:'agent_proposal_created',toolName:'propose_plan_changes',outcome:'success',summary:`Agent proposal ${result.proposal.id} created for human review.`});return ok({...proposalOutput(result.proposal,state),validation:'accepted_for_human_review'})}
+  },{
+    name:'get_plan_proposals',description:'Read up to 20 current or recent plan proposal records and revision context.',inputSchema:emptySchema,annotations:{readOnlyHint:true,untrustedContentHint:true},
+    execute:async(input)=>{if(!exactEmpty(input))return fail('invalid_input','No input properties are accepted.');const state=getState(),proposals=state.proposals??[];onActivity({kind:'read_tool_call',toolName:'get_plan_proposals',outcome:'success',summary:'Read completed.'});return ok({proposals:proposals.slice(0,20).map(proposal=>proposalOutput(proposal,state)),truncated:proposals.length>20})}
+  }]
+}
+export async function registerWebMCPTools(modelContext:ModelContextLike,getState:()=>WebMCPState,onProposal:(proposal:PlanChangeProposal)=>void,onActivity:(activity:Omit<WebMCPActivity,'id'|'timestamp'>)=>void,signal:AbortSignal){const tools=[...createReadTools(getState,onActivity),...createProposalTools(getState,onProposal,onActivity)];await Promise.all(tools.map(tool=>modelContext.registerTool(tool,{signal})));return tools.length}
 export async function registerReadTools(modelContext:ModelContextLike,getState:()=>WebMCPState,onActivity:(activity:Omit<WebMCPActivity,'id'|'timestamp'>)=>void,signal:AbortSignal){const tools=createReadTools(getState,onActivity);await Promise.all(tools.map(tool=>modelContext.registerTool(tool,{signal})));return tools.length}
-export const WEBMCP_TOOL_NAMES=['get_purchase_goal','get_purchase_plan','evaluate_purchase_plan','list_retained_products','inspect_product','evaluate_product','compare_products'] as const
+export const READ_TOOL_NAMES=['get_purchase_goal','get_purchase_plan','evaluate_purchase_plan','list_retained_products','inspect_product','evaluate_product','compare_products'] as const
+export const WEBMCP_TOOL_NAMES=[...READ_TOOL_NAMES,'propose_plan_changes','get_plan_proposals'] as const

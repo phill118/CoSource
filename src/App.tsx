@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 import type { MerchantOffer, ProductCluster, ProvenanceKind, ProviderIdentity } from './commerce/domain/commerce'
 import { providerIdentityKey, sameProviderIdentity } from './commerce/domain/provider-identity'
@@ -15,6 +15,9 @@ import { productEvidenceValues, refreshRetainedProductEvidence, retainProductEvi
 import { usePurchasePlan } from './planning/use-purchase-plan'
 import { useWebMCP } from './webmcp/use-webmcp'
 import { WebMCPStatusPanel } from './webmcp/WebMCPStatusPanel'
+import type { PlanChangeProposal } from './proposals/domain/plan-change-proposal'
+import { approveProposal, proposalEffectiveStatus, rejectProposal } from './proposals/proposal-service'
+import { ProposalReviewPanel } from './proposals/ProposalReviewPanel'
 
 const availabilityText = { available: 'Listed as available', unavailable: 'Unavailable', unknown: 'Availability not confirmed' }
 const provenanceText: Record<ProvenanceKind, string> = { provider_explicit: 'Provided', provider_inferred: 'Inferred', cosource_derived: 'Derived', unknown: 'Unknown' }
@@ -60,17 +63,22 @@ function friendlyError(error: unknown) {
 
 function App() {
   const purchaseGoal = usePurchaseGoal()
-  const validatedGoalResult = validatePurchaseGoal(purchaseGoal.goal)
+  const validatedGoalResult = useMemo(()=>validatePurchaseGoal(purchaseGoal.goal),[purchaseGoal.goal])
   const validatedGoal = validatedGoalResult.success ? validatedGoalResult.data : undefined
   const [query, setQuery] = useState(''); const [submitted, setSubmitted] = useState(''); const [products, setProducts] = useState<ProductCluster[]>([])
   const [cursor, setCursor] = useState<string>(); const [hasMore, setHasMore] = useState(false); const [status, setStatus] = useState<'idle'|'loading'|'loadingMore'|'success'|'empty'|'error'>('idle')
   const [error, setError] = useState(''); const [validation, setValidation] = useState(''); const [detail, setDetail] = useState<CatalogProductResult>(); const [detailState, setDetailState] = useState<'closed'|'loading'|'success'|'error'>('closed'); const [detailError, setDetailError] = useState('')
   const [comparisonIds,setComparisonIds]=useState<ProviderIdentity[]>([])
   const [productEvidence,setProductEvidence]=useState<ProductEvidenceRegistry>(()=>new Map())
-  const retainedProducts=productEvidenceValues(productEvidence)
+  const retainedProducts=useMemo(()=>productEvidenceValues(productEvidence),[productEvidence])
   const retainEvidence=(product:ProductCluster)=>setProductEvidence(current=>retainProductEvidence(current,product))
   const planning=usePurchasePlan(validatedGoal,retainedProducts,retainEvidence)
-  const webmcp=useWebMCP({goal:validatedGoal,plan:planning.plan,retainedProducts})
+  const [proposals,setProposals]=useState<PlanChangeProposal[]>([])
+  const webmcp=useWebMCP({goal:validatedGoal,plan:planning.plan,retainedProducts,proposals},proposal=>setProposals(current=>[proposal,...current].slice(0,20)))
+  const staleRecorded=useRef(new Set<string>()),recordActivity=webmcp.recordActivity
+  useEffect(()=>{if(!validatedGoal)return;const state={goal:validatedGoal,plan:planning.plan,retainedProducts},stale=proposals.filter(proposal=>proposal.status==='pending'&&proposalEffectiveStatus(proposal,state)==='stale'&&!staleRecorded.current.has(proposal.id));if(!stale.length)return;stale.forEach(proposal=>staleRecorded.current.add(proposal.id));recordActivity({kind:'proposal_stale',toolName:'human_plan_state',outcome:'success',summary:`${stale.length} pending proposal${stale.length===1?' became':'s became'} stale after a human state change.`})},[planning.plan,validatedGoal,retainedProducts,proposals,recordActivity])
+  function approve(id:string){if(!validatedGoal)return;const state={goal:validatedGoal,plan:planning.plan,retainedProducts};const target=proposals.find(proposal=>proposal.id===id);if(!target)return;const result=approveProposal(target,state,()=>new Date().toISOString());setProposals(current=>current.map(proposal=>proposal.id===id?result.proposal:proposal));if(result.plan){planning.replacePlan(result.plan);webmcp.recordActivity({kind:'proposal_applied',toolName:'human_approve_and_apply',outcome:'success',summary:`Agent-proposed changes were approved by the human and applied by CoSource. Revision ${planning.plan.revision} → ${result.plan.revision}.`})}else webmcp.recordActivity({kind:result.proposal.status==='stale'?'proposal_stale':'proposal_applied',toolName:'human_approve_and_apply',outcome:'failure',summary:result.proposal.error||'Proposal was not applied.'})}
+  function reject(id:string){setProposals(current=>current.map(proposal=>proposal.id===id?rejectProposal(proposal,()=>new Date().toISOString()):proposal));webmcp.recordActivity({kind:'proposal_rejected',toolName:'human_reject',outcome:'success',summary:'Agent proposal rejected by the human; plan unchanged.'})}
 
   async function search(nextQuery: string, nextCursor?: string) {
     const append = Boolean(nextCursor); setStatus(append ? 'loadingMore' : 'loading'); setError('')
@@ -79,8 +87,8 @@ function App() {
     catch (cause) { setError(friendlyError(cause)); setStatus('error') }
   }
   function submit(event: React.FormEvent) { event.preventDefault(); const trimmed = query.trim(); if (!trimmed) { setValidation('Enter a product to search for.'); return } setValidation(''); setSubmitted(trimmed); void search(trimmed) }
-  async function openProduct(product: ProductCluster) { setDetail(undefined); setDetailError(''); setDetailState('loading'); try { const result=await catalogClient.product(product.identity.id);setDetail(result);setProducts(current=>current.map(item=>sameProviderIdentity(item.identity,result.product.identity)?result.product:item));setProductEvidence(current=>refreshRetainedProductEvidence(current,[result.product])); setDetailState('success') } catch (cause) { setDetailError(friendlyError(cause)); setDetailState('error') } }
-  function toggleComparison(identity:ProviderIdentity){setComparisonIds(current=>current.some(value=>sameProviderIdentity(value,identity))?current.filter(value=>!sameProviderIdentity(value,identity)):current.length<2?[...current,identity]:[current[1]!,identity])}
+  async function openProduct(product: ProductCluster) { retainEvidence(product);setDetail(undefined); setDetailError(''); setDetailState('loading'); try { const result=await catalogClient.product(product.identity.id);setDetail(result);setProducts(current=>current.map(item=>sameProviderIdentity(item.identity,result.product.identity)?result.product:item));setProductEvidence(current=>retainProductEvidence(current,result.product)); setDetailState('success') } catch (cause) { setDetailError(friendlyError(cause)); setDetailState('error') } }
+  function toggleComparison(identity:ProviderIdentity){const selected=comparisonIds.some(value=>sameProviderIdentity(value,identity));if(!selected){const product=products.find(candidate=>sameProviderIdentity(candidate.identity,identity));if(product)retainEvidence(product)}setComparisonIds(current=>selected?current.filter(value=>!sameProviderIdentity(value,identity)):current.length<2?[...current,identity]:[current[1]!,identity])}
 
   return <div className="app-shell"><header className="site-header"><div><a className="brand" href="/">CoSource</a><span>Agent-native commerce intelligence</span></div><p>Human-authored intent · Live discovery</p></header><main>
     <PurchaseGoalPanel {...purchaseGoal} useSummary={() => setQuery(purchaseGoal.goal.summary.trim())}/>
@@ -89,6 +97,6 @@ function App() {
     </section><section className="discovery" aria-labelledby="results-title"><div className="results-head"><div><p className="eyebrow">Discovery results</p><h2 id="results-title">{submitted ? `Results for “${submitted}”` : 'Ready when you are'}</h2></div>{products.length > 0 && <span>{products.length} product {products.length === 1 ? 'cluster' : 'clusters'} shown</span>}</div>
       <div aria-live="polite">{status === 'idle' && <div className="empty-state"><h3>Start with an ordinary product search</h3><p>Results come live from the Shopify Global Catalog through CoSource’s secure gateway.</p></div>}{status === 'loading' && <div className="loading-grid" role="status"><span>Searching the live catalog…</span><i/><i/><i/></div>}{status === 'empty' && <div className="empty-state"><h3>No matching products returned</h3><p>Try a broader product name or check the spelling.</p></div>}{status === 'error' && <div className="notice error" role="alert"><p>{error}</p><button className="secondary" onClick={() => void search(submitted)}>Try again</button></div>}</div>
       {products.length > 0 && <div className="workspace"><div className="results-list">{products.map((product) => <ResultCard key={providerIdentityKey(product.identity)} product={product} comparisonSelected={comparisonIds.some((identity)=>sameProviderIdentity(identity,product.identity))} onToggleComparison={()=>toggleComparison(product.identity)} onOpen={() => void openProduct(product)} />)}{hasMore && <button className="load-more" disabled={status === 'loadingMore'} onClick={() => void search(submitted, cursor)}>{status === 'loadingMore' ? 'Loading more…' : 'Load more products'}</button>}</div>{detailState !== 'closed' && <Detail result={detail} loading={detailState === 'loading'} error={detailError} goal={validatedGoal} onClose={() => setDetailState('closed')} />}</div>}
-    </section>{validatedGoal&&<DecisionWorkspace goal={validatedGoal} products={products} evidenceProducts={retainedProducts} planning={planning} comparisonIds={comparisonIds} onClearComparison={()=>setComparisonIds([])}/>}</main><WebMCPStatusPanel {...webmcp}/><footer><p>Catalog facts may be incomplete or provider-inferred. Verify details with the merchant before purchase.</p></footer></div>
+    </section>{validatedGoal&&<><DecisionWorkspace goal={validatedGoal} products={products} evidenceProducts={retainedProducts} planning={planning} comparisonIds={comparisonIds} onClearComparison={()=>setComparisonIds([])}/><ProposalReviewPanel proposals={proposals} goal={validatedGoal} plan={planning.plan} products={retainedProducts} onApprove={approve} onReject={reject}/></>}</main><WebMCPStatusPanel {...webmcp}/><footer><p>Catalog facts may be incomplete or provider-inferred. Verify details with the merchant before purchase.</p></footer></div>
 }
 export default App

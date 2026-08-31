@@ -12,6 +12,7 @@ export function usePurchasePlan(goal: PurchaseGoal | undefined, evidenceProducts
   const setQuantity = (lineId: string, quantity: number) => setPlan((current) => setPlanLineQuantity(current, lineId, quantity))
   const selectOffer = (lineId: string, offer: ProviderIdentity | undefined) => setPlan((current) => selectPlanLineOffer(current, lineId, offer, evidenceProducts))
   const rebaseToGoal = () => goal && setPlan((current) => rebasePlanToGoal(current, goal.id, goal.revision))
-  return { plan, addProduct, removeLine, setQuantity, selectOffer, rebaseToGoal }
+  const replacePlan = (next:PurchasePlan) => setPlan(next)
+  return { plan, addProduct, removeLine, setQuantity, selectOffer, rebaseToGoal, replacePlan }
 }
 export type PurchasePlanController=ReturnType<typeof usePurchasePlan>
