@@ -39,4 +39,6 @@ No application services, provider gateway, adapters, WebMCP tools, agent integra
 
 Pass 2 introduces a provider-independent canonical commerce domain under `src/commerce/domain`, a catalog-provider contract under `src/commerce/providers`, and a Shopify Global Catalog adapter isolated under `src/commerce/providers/shopify-global`. Remote Shopify/UCP JSON is runtime-validated before mapping. Application consumers receive canonical clusters, offers, provenance, messages, and pagination rather than raw transport envelopes.
 
-The provider is environment-neutral and fetch-injectable. A browser CORS preflight against the current Global Catalog endpoint did not succeed, so no direct-browser integration or backend/proxy was assumed. That deployment boundary remains an explicit future architecture decision.
+The provider is environment-neutral and fetch-injectable. A browser CORS preflight against the current Global Catalog endpoint did not succeed, so Pass 3 adds a portable same-origin server gateway. Browser requests reach only `/api/catalog/*`; the gateway injects the existing `CatalogProvider` and never duplicates Shopify transport or mapping logic. A thin localhost Node runner supplies development transport without selecting a deployment vendor.
+
+Server-only configuration and composition live under `server/` and are not imported by the Vite client entry graph. The browser cannot select provider endpoints, tools, headers, or agent profiles. Production deployment adaptation remains a later decision.

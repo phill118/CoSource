@@ -1,6 +1,6 @@
 # Commerce provider layer
 
-Pass 2 implements data access and normalization only. It does not expose product search in the UI.
+Pass 2 implements data access and normalization. Pass 3 exposes it through a server-side canonical gateway; product search is still not exposed in the UI.
 
 ## Ownership
 
@@ -34,4 +34,4 @@ The model deliberately has no shipping cost, delivery date, tax, stock quantity,
 
 The Shopify endpoint has one fixed owner. Construction requires a controlled HTTPS agent-profile URL and optionally accepts a bounded timeout and injected `fetch` implementation. Requests have bounded inputs, increasing JSON-RPC IDs, abort timeouts, no automatic retries, and safe error categories. HTTP 429 retains numeric `Retry-After` seconds where supplied.
 
-The current endpoint did not accept the Pass 2 browser CORS preflight. No backend was introduced; browser-to-provider transport remains deferred for an authorised architecture decision.
+The current endpoint did not accept the Pass 2 browser CORS preflight. Pass 3 therefore routes the future browser through same-origin `/api/catalog/*` handlers into this provider. The gateway contains no Shopify mapping or raw protocol logic. Server-only profile configuration remains outside the client bundle.
