@@ -42,3 +42,7 @@ Pass 2 introduces a provider-independent canonical commerce domain under `src/co
 The provider is environment-neutral and fetch-injectable. A browser CORS preflight against the current Global Catalog endpoint did not succeed, so Pass 3 adds a portable same-origin server gateway. Browser requests reach only `/api/catalog/*`; the gateway injects the existing `CatalogProvider` and never duplicates Shopify transport or mapping logic. A thin localhost Node runner supplies development transport without selecting a deployment vendor.
 
 Server-only configuration and composition live under `server/` and are not imported by the Vite client entry graph. The browser cannot select provider endpoints, tools, headers, or agent profiles. Production deployment adaptation remains a later decision.
+
+Pass 4 adds a browser-owned canonical API client under `src/commerce/client` and a React discovery experience. The client calls only the same-origin gateway and runtime-validates its public success/error envelopes. One application component owns search, cursor pagination, and product-detail state. The UI preserves canonical provenance, availability uncertainty, offer completeness, and currency without importing server or Shopify-provider internals.
+
+Offer emphasis is evidence-based: only an exact canonical `featuredOfferId` match receives the featured label. Money display is centralised in the commerce domain and derives fraction digits from `Intl.NumberFormat` currency metadata rather than assuming two-decimal currencies.
