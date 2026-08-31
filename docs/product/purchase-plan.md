@@ -1,0 +1,19 @@
+# Purchase plan
+
+A `PurchasePlan` is authoritative application state with a stable identifier, a monotonic revision, and the Purchase Goal identifier and revision it references. Plan-line identifiers must be unique. Lines retain canonical product identity, quantity and unit semantics, and an optional selected merchant-offer identity. Multiple offers require an explicit human choice; a sole offer can be used neutrally.
+
+Plan evaluation reuses Pass 6 product evaluation. It reports mandatory failures, exclusion violations, unknown requirements, satisfied preferences, merchant count, currencies, and plan readiness. A changed goal revision marks the plan stale until the user explicitly re-evaluates it.
+
+Only supported item-price arithmetic is included. Known subtotals are grouped by currency, with no currency conversion. Quantity is multiplied only when a line is known to represent single items. Missing products or offers, ambiguous quantities, and unsafe arithmetic remain visible unresolved costs and are never treated as zero. Shipping, tax, discounts, payment, and a cross-merchant final total are outside this pass.
+
+When the goal has a budget, plan evaluation separately compares the complete safely-known plan item subtotal with that overall budget. This is distinct from Pass 6 product-level budget evidence, which only indicates whether one product's selected item price exceeds the budget. The plan result is satisfied only when every line is safely costed in the budget currency and the subtotal is at or below budget; it fails only when that complete comparable subtotal exceeds budget; otherwise it is unknown. Mixed currencies require FX and therefore remain unknown.
+
+Known conflicts, including a failed plan budget, take status precedence over incomplete evidence so they remain visible. An unknown plan budget prevents readiness. Both per-line multiplication and the prospective currency aggregate must remain safe integers; unsafe amounts are omitted from known subtotals and reported as unresolved.
+
+All canonical product, offer, and merchant identities are matched by provider plus opaque ID through one structured identity-key utility. Equal textual IDs from different providers do not collide. The UI state and plan evaluator use the same rule.
+
+Plan changes use bounded operations rather than arbitrary line patches: add a canonical product, remove by line ID, set an integer quantity from 1 through 100,000, select or clear an offer verified against the line's canonical product, and explicitly rebase to a goal revision. Successful changes increment revision once; rejected or no-op changes do not alter identity or revision.
+
+Discovery results and retained decision evidence are separate browser-session state. Adding a product retains its canonical `ProductCluster` in a provider-keyed evidence registry alongside the lightweight plan. Later searches can replace the visible discovery page without erasing evidence used by existing plan lines. If the authoritative browser commerce path later returns the same canonical identity—such as richer product detail—the retained object is replaced wholesale; unrelated results are not retained automatically. Evidence refresh does not mutate or revise the plan.
+
+Plan evaluation, offer selection, and plan-line display read retained canonical evidence rather than reconstructing products from plan snapshots. If retained evidence is genuinely unavailable, the existing unknown handling applies. The registry stores neither raw provider envelopes nor persistent data.
