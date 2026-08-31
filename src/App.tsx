@@ -4,6 +4,8 @@ import type { MerchantOffer, ProductCluster, ProvenanceKind } from './commerce/d
 import type { CatalogProductResult } from './commerce/providers/catalog-provider'
 import { catalogClient, CatalogClientError } from './commerce/client/catalog-client'
 import { formatMoney, MoneyDisplayError } from './commerce/domain/money-display'
+import { PurchaseGoalPanel } from './goals/PurchaseGoalPanel'
+import { usePurchaseGoal } from './goals/use-purchase-goal'
 
 const availabilityText = { available: 'Listed as available', unavailable: 'Unavailable', unknown: 'Availability not confirmed' }
 const provenanceText: Record<ProvenanceKind, string> = { provider_explicit: 'Provided', provider_inferred: 'Inferred', cosource_derived: 'Derived', unknown: 'Unknown' }
@@ -48,6 +50,7 @@ function friendlyError(error: unknown) {
 }
 
 function App() {
+  const purchaseGoal = usePurchaseGoal()
   const [query, setQuery] = useState(''); const [submitted, setSubmitted] = useState(''); const [products, setProducts] = useState<ProductCluster[]>([])
   const [cursor, setCursor] = useState<string>(); const [hasMore, setHasMore] = useState(false); const [status, setStatus] = useState<'idle'|'loading'|'loadingMore'|'success'|'empty'|'error'>('idle')
   const [error, setError] = useState(''); const [validation, setValidation] = useState(''); const [detail, setDetail] = useState<CatalogProductResult>(); const [detailState, setDetailState] = useState<'closed'|'loading'|'success'|'error'>('closed'); const [detailError, setDetailError] = useState('')
@@ -61,8 +64,9 @@ function App() {
   function submit(event: React.FormEvent) { event.preventDefault(); const trimmed = query.trim(); if (!trimmed) { setValidation('Enter a product to search for.'); return } setValidation(''); setSubmitted(trimmed); void search(trimmed) }
   async function openProduct(product: ProductCluster) { setDetail(undefined); setDetailError(''); setDetailState('loading'); try { setDetail(await catalogClient.product(product.identity.id)); setDetailState('success') } catch (cause) { setDetailError(friendlyError(cause)); setDetailState('error') } }
 
-  return <div className="app-shell"><header className="site-header"><div><a className="brand" href="/">CoSource</a><span>Agent-native commerce intelligence</span></div><p>Live product discovery</p></header><main>
-    <section className="hero" aria-labelledby="page-title"><p className="eyebrow">Cross-merchant catalog</p><h1 id="page-title">Search real products across merchants.</h1><p>Explore product clusters and inspect offers returned by participating Shopify merchants—without rankings or recommendations.</p>
+  return <div className="app-shell"><header className="site-header"><div><a className="brand" href="/">CoSource</a><span>Agent-native commerce intelligence</span></div><p>Human-authored intent · Live discovery</p></header><main>
+    <PurchaseGoalPanel {...purchaseGoal} useSummary={() => setQuery(purchaseGoal.goal.summary.trim())}/>
+    <section className="hero" aria-labelledby="page-title"><p className="eyebrow">2 · Search real products</p><h1 id="page-title">Search real products across merchants.</h1><p>Explore product clusters and inspect offers returned by participating Shopify merchants—without rankings, recommendations, or claims that they satisfy your goal.</p>
       <form className="search-form" onSubmit={submit}><label htmlFor="product-search">What are you looking for?</label><div className="search-row"><input id="product-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Try notebook, backpack, or desk lamp" maxLength={500} aria-describedby={validation ? 'search-validation' : 'search-context'} /><button disabled={status === 'loading'}>{status === 'loading' ? 'Searching…' : 'Search products'}</button></div><p id="search-context">Searching with GB / GBP context. Every price keeps its returned currency.</p>{validation && <p id="search-validation" className="validation" role="alert">{validation}</p>}</form>
     </section><section className="discovery" aria-labelledby="results-title"><div className="results-head"><div><p className="eyebrow">Discovery results</p><h2 id="results-title">{submitted ? `Results for “${submitted}”` : 'Ready when you are'}</h2></div>{products.length > 0 && <span>{products.length} product {products.length === 1 ? 'cluster' : 'clusters'} shown</span>}</div>
       <div aria-live="polite">{status === 'idle' && <div className="empty-state"><h3>Start with an ordinary product search</h3><p>Results come live from the Shopify Global Catalog through CoSource’s secure gateway.</p></div>}{status === 'loading' && <div className="loading-grid" role="status"><span>Searching the live catalog…</span><i/><i/><i/></div>}{status === 'empty' && <div className="empty-state"><h3>No matching products returned</h3><p>Try a broader product name or check the spelling.</p></div>}{status === 'error' && <div className="notice error" role="alert"><p>{error}</p><button className="secondary" onClick={() => void search(submitted)}>Try again</button></div>}</div>

@@ -6,7 +6,7 @@ CoSource is intended to become a cross-merchant commerce intelligence and purcha
 
 ## Status
 
-This repository contains a real cross-merchant product-discovery UI backed by the live Shopify Global Catalog through a tested provider-independent commerce domain and same-origin server gateway. Search results are non-exhaustive product clusters; product detail may reveal multiple merchant offers. Prices always retain their explicit currency, and no ranking or recommendation exists yet.
+This repository contains a human-authored Purchase Goal editor alongside real cross-merchant product discovery backed by the live Shopify Global Catalog through a tested provider-independent commerce domain and same-origin server gateway. Goals preserve quantity, explicit-currency budget, hard requirements, preferences, and exclusions. Products are not yet evaluated, matched, ranked, or recommended against those goals.
 
 The project is being prepared for The WebMCP Challenge. Its architectural principle is: humans provide intent and final authority; CoSource supplies trusted application and commerce intelligence; an AI agent plans and collaborates; WebMCP provides the structured browser interface; and authorised commerce providers remain the source of external commerce data.
 

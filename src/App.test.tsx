@@ -14,6 +14,36 @@ const ok = (data: unknown) => Promise.resolve(new Response(JSON.stringify({ ok: 
 afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 
 describe('product discovery UI', () => {
+  it('builds and edits one transparent structured purchase goal', async () => {
+    render(<App />)
+    const summary = screen.getByLabelText('What are you trying to buy or achieve?')
+    await userEvent.type(summary, 'Six office chairs')
+    await userEvent.type(screen.getByLabelText('Quantity optional'), '6')
+    await userEvent.type(screen.getByLabelText('Budget amount'), '800')
+    await userEvent.click(screen.getByRole('button', { name: 'Add hard requirement' }))
+    await userEvent.type(screen.getByLabelText('Must have 1 value'), 'adjustable arms')
+    await userEvent.click(screen.getByRole('button', { name: 'Add preference' }))
+    await userEvent.type(screen.getByLabelText('Prefer 1 value'), 'black')
+    await userEvent.click(screen.getByRole('button', { name: 'Add exclusion' }))
+    await userEvent.type(screen.getByLabelText('Exclude 1 value'), 'leather')
+    expect(screen.getByText('6 × Six office chairs')).toBeInTheDocument()
+    expect(screen.getByText('GBP 800.00')).toBeInTheDocument()
+    expect(screen.getByText('adjustable arms')).toBeInTheDocument(); expect(screen.getByText('black')).toBeInTheDocument(); expect(screen.getByText('leather')).toBeInTheDocument()
+    expect(screen.getByText(/Revision [1-9]/)).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Remove preference 1' }))
+    expect(screen.queryByText('black')).not.toBeInTheDocument()
+    expect(screen.queryByText(/product matches|fit score|recommended product/i)).not.toBeInTheDocument()
+  })
+  it('copies the literal goal summary into keyword search without interpreting it', async () => {
+    render(<App />); const summary = screen.getByLabelText('What are you trying to buy or achieve?'); await userEvent.type(summary, 'waterproof backpack for a laptop'); await userEvent.click(screen.getByRole('button', { name: 'Use goal summary as search' }))
+    expect(screen.getByLabelText('What are you looking for?')).toHaveValue('waterproof backpack for a laptop')
+  })
+  it('defaults budget currency to GBP and accepts a real supported currency outside the former shortlist', async () => {
+    render(<App />); expect(screen.getByLabelText('Budget currency')).toHaveValue('GBP'); await userEvent.type(screen.getByLabelText('What are you trying to buy or achieve?'), 'Office supplies')
+    await userEvent.type(screen.getByLabelText('Budget amount'), '25')
+    await userEvent.clear(screen.getByLabelText('Budget currency')); await userEvent.type(screen.getByLabelText('Budget currency'), 'AUD')
+    expect(screen.getByText('AUD 25.00')).toBeInTheDocument()
+  })
   it('validates empty queries locally', async () => {
     render(<App />); await userEvent.click(screen.getByRole('button', { name: 'Search products' }))
     expect(screen.getByRole('alert')).toHaveTextContent('Enter a product')
