@@ -5,7 +5,7 @@ import type { PurchaseGoal } from '../goals/domain/purchase-goal'
 import { evaluateProductAgainstGoal } from '../evaluation/evaluate-product'
 import { compareProductEvaluations } from '../comparison/compare-products'
 import { evaluatePurchasePlan, neutralOffer } from './evaluate-plan'
-import { usePurchasePlan } from './use-purchase-plan'
+import type { PurchasePlanController } from './use-purchase-plan'
 import './DecisionWorkspace.css'
 
 const outcomeLabels = {
@@ -16,10 +16,9 @@ const outcomeLabels = {
   equivalent_on_known_evidence: 'Equivalent on known evidence',
 }
 
-export function DecisionWorkspace({ goal, products, evidenceProducts, retainEvidence, comparisonIds, onClearComparison }: {
-  goal: PurchaseGoal; products: ProductCluster[]; evidenceProducts: ProductCluster[]; retainEvidence:(product:ProductCluster)=>void; comparisonIds: ProviderIdentity[]; onClearComparison: () => void
+export function DecisionWorkspace({ goal, products, evidenceProducts, planning, comparisonIds, onClearComparison }: {
+  goal: PurchaseGoal; products: ProductCluster[]; evidenceProducts: ProductCluster[]; planning:PurchasePlanController; comparisonIds: ProviderIdentity[]; onClearComparison: () => void
 }) {
-  const planning = usePurchasePlan(goal, evidenceProducts, retainEvidence)
   const selected = comparisonIds.map((identity) => findByProviderIdentity(products, identity))
     .filter((product): product is ProductCluster => Boolean(product))
   const comparison = selected.length === 2 ? compareProductEvaluations(

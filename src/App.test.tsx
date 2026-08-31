@@ -14,6 +14,8 @@ const ok = (data: unknown) => Promise.resolve(new Response(JSON.stringify({ ok: 
 afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 
 describe('product discovery UI', () => {
+  it('keeps the human UI available when WebMCP is unsupported',()=>{render(<App/>);expect(screen.getByText('WebMCP unavailable in this browser')).toBeInTheDocument();expect(screen.getByText('Purchase goal')).toBeInTheDocument()})
+  it('shows real registration and invocation activity with a model context',async()=>{const registered:Array<{tool:WebMCPToolDefinition;signal?:AbortSignal}>=[];const modelContext=Object.assign(new EventTarget(),{async registerTool(tool:WebMCPToolDefinition,options?:{signal?:AbortSignal}){registered.push({tool,signal:options?.signal})}});Object.defineProperty(document,'modelContext',{configurable:true,value:modelContext});try{render(<App/>);expect(await screen.findByText('WebMCP ready')).toBeInTheDocument();expect(screen.getByText('7 read-only tools available. No agent connection is implied.')).toBeInTheDocument();const tool=registered.find(item=>item.tool.name==='get_purchase_plan')!.tool;await tool.execute({});expect(await screen.findByText('get_purchase_plan')).toBeInTheDocument();expect(screen.getByText(/success: Read completed/)).toBeInTheDocument();cleanup();expect(registered.every(item=>item.signal?.aborted)).toBe(true)}finally{delete (document as Document&{modelContext?:WebMCPModelContext}).modelContext}})
   it('builds and edits one transparent structured purchase goal', async () => {
     render(<App />)
     const summary = screen.getByLabelText('What are you trying to buy or achieve?')

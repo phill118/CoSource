@@ -12,6 +12,9 @@ import type { PurchaseGoal } from './goals/domain/purchase-goal'
 import { ProductEvaluationPanel } from './evaluation/ProductEvaluationPanel'
 import { DecisionWorkspace } from './planning/DecisionWorkspace'
 import { productEvidenceValues, refreshRetainedProductEvidence, retainProductEvidence, type ProductEvidenceRegistry } from './planning/product-evidence-registry'
+import { usePurchasePlan } from './planning/use-purchase-plan'
+import { useWebMCP } from './webmcp/use-webmcp'
+import { WebMCPStatusPanel } from './webmcp/WebMCPStatusPanel'
 
 const availabilityText = { available: 'Listed as available', unavailable: 'Unavailable', unknown: 'Availability not confirmed' }
 const provenanceText: Record<ProvenanceKind, string> = { provider_explicit: 'Provided', provider_inferred: 'Inferred', cosource_derived: 'Derived', unknown: 'Unknown' }
@@ -66,6 +69,8 @@ function App() {
   const [productEvidence,setProductEvidence]=useState<ProductEvidenceRegistry>(()=>new Map())
   const retainedProducts=productEvidenceValues(productEvidence)
   const retainEvidence=(product:ProductCluster)=>setProductEvidence(current=>retainProductEvidence(current,product))
+  const planning=usePurchasePlan(validatedGoal,retainedProducts,retainEvidence)
+  const webmcp=useWebMCP({goal:validatedGoal,plan:planning.plan,retainedProducts})
 
   async function search(nextQuery: string, nextCursor?: string) {
     const append = Boolean(nextCursor); setStatus(append ? 'loadingMore' : 'loading'); setError('')
@@ -84,6 +89,6 @@ function App() {
     </section><section className="discovery" aria-labelledby="results-title"><div className="results-head"><div><p className="eyebrow">Discovery results</p><h2 id="results-title">{submitted ? `Results for “${submitted}”` : 'Ready when you are'}</h2></div>{products.length > 0 && <span>{products.length} product {products.length === 1 ? 'cluster' : 'clusters'} shown</span>}</div>
       <div aria-live="polite">{status === 'idle' && <div className="empty-state"><h3>Start with an ordinary product search</h3><p>Results come live from the Shopify Global Catalog through CoSource’s secure gateway.</p></div>}{status === 'loading' && <div className="loading-grid" role="status"><span>Searching the live catalog…</span><i/><i/><i/></div>}{status === 'empty' && <div className="empty-state"><h3>No matching products returned</h3><p>Try a broader product name or check the spelling.</p></div>}{status === 'error' && <div className="notice error" role="alert"><p>{error}</p><button className="secondary" onClick={() => void search(submitted)}>Try again</button></div>}</div>
       {products.length > 0 && <div className="workspace"><div className="results-list">{products.map((product) => <ResultCard key={providerIdentityKey(product.identity)} product={product} comparisonSelected={comparisonIds.some((identity)=>sameProviderIdentity(identity,product.identity))} onToggleComparison={()=>toggleComparison(product.identity)} onOpen={() => void openProduct(product)} />)}{hasMore && <button className="load-more" disabled={status === 'loadingMore'} onClick={() => void search(submitted, cursor)}>{status === 'loadingMore' ? 'Loading more…' : 'Load more products'}</button>}</div>{detailState !== 'closed' && <Detail result={detail} loading={detailState === 'loading'} error={detailError} goal={validatedGoal} onClose={() => setDetailState('closed')} />}</div>}
-    </section>{validatedGoal&&<DecisionWorkspace goal={validatedGoal} products={products} evidenceProducts={retainedProducts} retainEvidence={retainEvidence} comparisonIds={comparisonIds} onClearComparison={()=>setComparisonIds([])}/>}</main><footer><p>Catalog facts may be incomplete or provider-inferred. Verify details with the merchant before purchase.</p></footer></div>
+    </section>{validatedGoal&&<DecisionWorkspace goal={validatedGoal} products={products} evidenceProducts={retainedProducts} planning={planning} comparisonIds={comparisonIds} onClearComparison={()=>setComparisonIds([])}/>}</main><WebMCPStatusPanel {...webmcp}/><footer><p>Catalog facts may be incomplete or provider-inferred. Verify details with the merchant before purchase.</p></footer></div>
 }
 export default App
