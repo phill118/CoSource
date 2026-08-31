@@ -6,6 +6,9 @@ import { catalogClient, CatalogClientError } from './commerce/client/catalog-cli
 import { formatMoney, MoneyDisplayError } from './commerce/domain/money-display'
 import { PurchaseGoalPanel } from './goals/PurchaseGoalPanel'
 import { usePurchaseGoal } from './goals/use-purchase-goal'
+import { validatePurchaseGoal } from './goals/domain/purchase-goal'
+import type { PurchaseGoal } from './goals/domain/purchase-goal'
+import { ProductEvaluationPanel } from './evaluation/ProductEvaluationPanel'
 
 const availabilityText = { available: 'Listed as available', unavailable: 'Unavailable', unknown: 'Availability not confirmed' }
 const provenanceText: Record<ProvenanceKind, string> = { provider_explicit: 'Provided', provider_inferred: 'Inferred', cosource_derived: 'Derived', unknown: 'Unknown' }
@@ -31,10 +34,10 @@ function ResultCard({ product, onOpen }: { product: ProductCluster; onOpen: () =
   </div></article>
 }
 
-function Detail({ result, loading, error, onClose }: { result?: CatalogProductResult; loading: boolean; error?: string; onClose: () => void }) {
+function Detail({ result, loading, error, onClose, goal }: { result?: CatalogProductResult; loading: boolean; error?: string; onClose: () => void; goal?: PurchaseGoal }) {
   return <aside className="detail" aria-labelledby="detail-title" aria-live="polite"><div className="detail-head"><p className="eyebrow">Product detail</p><button type="button" className="quiet" onClick={onClose}>Close</button></div>
     {loading && <p role="status">Loading product and merchant offers…</p>}{error && <div className="notice error" role="alert">{error}</div>}
-    {result && <><h2 id="detail-title">{result.product.title.value}</h2><p className="trust-note">Product information: {provenanceText[result.product.title.provenance.kind]}. Some descriptions and attributes are inferred by the commerce provider and may require verification.</p>
+    {result && <><h2 id="detail-title">{result.product.title.value}</h2><p className="trust-note">Product information: {provenanceText[result.product.title.provenance.kind]}. Some descriptions and attributes are inferred by the commerce provider and may require verification.</p>{goal ? <ProductEvaluationPanel goal={goal} product={result.product}/> : <p className="notice">Complete a valid purchase goal to evaluate this product.</p>}
       {result.product.options?.value.length ? <div><h3>Product options</h3>{result.product.options.value.map((option) => <p key={option.name}><strong>{option.name}:</strong> {option.values.map((value) => value.value).join(', ')}</p>)}<p className="muted">Options are shown read-only in this pass.</p></div> : null}
       <h3>{result.product.offers.length} merchant {result.product.offers.length === 1 ? 'offer' : 'offers'}</h3><p className="muted">Offers are shown in provider order and are not ranked. Currencies are not converted.</p>
       <div className="offers">{result.product.offers.map((offer) => <article className="offer" key={offer.identity.id}><h4>{offer.merchant?.name || offer.merchant?.domain || 'Merchant not named'}</h4><strong className="offer-price">{money(offer)}</strong><span>{availabilityText[offer.availability.state]}</span>{offer.selectedOptions.length > 0 && <p>{offer.selectedOptions.map((option) => `${option.name}: ${option.value}`).join(' · ')}</p>}<div className="offer-links">{safeExternal(offer.productUrl) && <a href={offer.productUrl} target="_blank" rel="noopener noreferrer">View on merchant site</a>}{safeExternal(offer.handoffUrl) && <a href={offer.handoffUrl} target="_blank" rel="noopener noreferrer">Continue with merchant</a>}</div></article>)}</div>
@@ -51,6 +54,8 @@ function friendlyError(error: unknown) {
 
 function App() {
   const purchaseGoal = usePurchaseGoal()
+  const validatedGoalResult = validatePurchaseGoal(purchaseGoal.goal)
+  const validatedGoal = validatedGoalResult.success ? validatedGoalResult.data : undefined
   const [query, setQuery] = useState(''); const [submitted, setSubmitted] = useState(''); const [products, setProducts] = useState<ProductCluster[]>([])
   const [cursor, setCursor] = useState<string>(); const [hasMore, setHasMore] = useState(false); const [status, setStatus] = useState<'idle'|'loading'|'loadingMore'|'success'|'empty'|'error'>('idle')
   const [error, setError] = useState(''); const [validation, setValidation] = useState(''); const [detail, setDetail] = useState<CatalogProductResult>(); const [detailState, setDetailState] = useState<'closed'|'loading'|'success'|'error'>('closed'); const [detailError, setDetailError] = useState('')
@@ -70,7 +75,7 @@ function App() {
       <form className="search-form" onSubmit={submit}><label htmlFor="product-search">What are you looking for?</label><div className="search-row"><input id="product-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Try notebook, backpack, or desk lamp" maxLength={500} aria-describedby={validation ? 'search-validation' : 'search-context'} /><button disabled={status === 'loading'}>{status === 'loading' ? 'Searching…' : 'Search products'}</button></div><p id="search-context">Searching with GB / GBP context. Every price keeps its returned currency.</p>{validation && <p id="search-validation" className="validation" role="alert">{validation}</p>}</form>
     </section><section className="discovery" aria-labelledby="results-title"><div className="results-head"><div><p className="eyebrow">Discovery results</p><h2 id="results-title">{submitted ? `Results for “${submitted}”` : 'Ready when you are'}</h2></div>{products.length > 0 && <span>{products.length} product {products.length === 1 ? 'cluster' : 'clusters'} shown</span>}</div>
       <div aria-live="polite">{status === 'idle' && <div className="empty-state"><h3>Start with an ordinary product search</h3><p>Results come live from the Shopify Global Catalog through CoSource’s secure gateway.</p></div>}{status === 'loading' && <div className="loading-grid" role="status"><span>Searching the live catalog…</span><i/><i/><i/></div>}{status === 'empty' && <div className="empty-state"><h3>No matching products returned</h3><p>Try a broader product name or check the spelling.</p></div>}{status === 'error' && <div className="notice error" role="alert"><p>{error}</p><button className="secondary" onClick={() => void search(submitted)}>Try again</button></div>}</div>
-      {products.length > 0 && <div className="workspace"><div className="results-list">{products.map((product) => <ResultCard key={product.identity.id} product={product} onOpen={() => void openProduct(product)} />)}{hasMore && <button className="load-more" disabled={status === 'loadingMore'} onClick={() => void search(submitted, cursor)}>{status === 'loadingMore' ? 'Loading more…' : 'Load more products'}</button>}</div>{detailState !== 'closed' && <Detail result={detail} loading={detailState === 'loading'} error={detailError} onClose={() => setDetailState('closed')} />}</div>}
+      {products.length > 0 && <div className="workspace"><div className="results-list">{products.map((product) => <ResultCard key={product.identity.id} product={product} onOpen={() => void openProduct(product)} />)}{hasMore && <button className="load-more" disabled={status === 'loadingMore'} onClick={() => void search(submitted, cursor)}>{status === 'loadingMore' ? 'Loading more…' : 'Load more products'}</button>}</div>{detailState !== 'closed' && <Detail result={detail} loading={detailState === 'loading'} error={detailError} goal={validatedGoal} onClose={() => setDetailState('closed')} />}</div>}
     </section></main><footer><p>Catalog facts may be incomplete or provider-inferred. Verify details with the merchant before purchase.</p></footer></div>
 }
 export default App
