@@ -14,6 +14,7 @@ function fixture(){
   const productLookup=vi.fn(async(input:{identity:{id:string}})=>({product:products.find(item=>item.identity.id===input.identity.id)!,selectedOptions:[],messages:[]}))
   const application=createCoSourceApplication({market,catalog:{search,product:productLookup},makeId:()=>`id-${++n}`,now:()=>`2026-09-02T00:00:0${n}Z`})
   application.editGoal({summary:'Equip a team',searchFocus:'generic products'})
+  application.commitGoalDraft()
   return{application,search,productLookup,products}
 }
 
@@ -36,11 +37,11 @@ describe('canonical CoSource application kernel',()=>{
     await sourceTool.execute({query:'generic products',country:'US',currency:'USD'})
     expect(spy).toHaveBeenCalledWith(expect.objectContaining({market:{country:'US',currency:'USD'}}))
     expect(application.getSnapshot().agentDiscovery.candidates).toHaveLength(2)
-    expect(application.getSnapshot().activities).toHaveLength(1)
+    expect(application.getSnapshot().activities.filter(activity=>activity.kind==='agent_search')).toHaveLength(1)
     const mismatch=await sourceTool.execute({query:'generic products',country:'GB',currency:'GBP'})
     expect(mismatch).toMatchObject({ok:false,error:{code:'invalid_input'}})
     expect(search).toHaveBeenCalledTimes(1)
-    expect(application.getSnapshot().activities).toHaveLength(2)
+    expect(application.getSnapshot().activities.filter(activity=>activity.kind==='agent_search')).toHaveLength(2)
   })
 
   it('propagates canonical provider identity and explicit session market through inspection',async()=>{
@@ -76,6 +77,6 @@ describe('canonical CoSource application kernel',()=>{
     const current=application.getSnapshot(),second=application.createPlanProposal({planId:current.plan.id,planRevision:current.plan.revision,goalId:current.activeGoal!.id,goalRevision:current.activeGoal!.revision,operations:[{type:'remove_plan_line',lineId:current.plan.lines[0]!.id}]})
     expect(second.ok).toBe(true)
     if(second.ok)expect(application.rejectPlanProposal(second.value.id)).toMatchObject({ok:true,value:{status:'rejected'}})
-    expect(application.getSnapshot().activities.map(activity=>activity.kind)).toEqual(['proposal_rejected','agent_proposal_created','proposal_applied','agent_proposal_created'])
+    expect(application.getSnapshot().activities.map(activity=>activity.kind)).toEqual(['proposal_rejected','agent_proposal_created','proposal_applied','agent_proposal_created','goal_committed'])
   })
 })

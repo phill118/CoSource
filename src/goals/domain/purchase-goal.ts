@@ -2,6 +2,8 @@ import { z } from 'zod'
 import type { Money } from '../../commerce/domain/commerce'
 
 export const CONDITION_OPERATORS = ['free_text', 'equals', 'is_true', 'is_false', 'at_most', 'at_least'] as const
+export const NUMERIC_CONDITION_MAX_LENGTH = 32
+export const NUMERIC_CONDITION_PATTERN = '-?(?:\\d{1,18}(?:\\.\\d{1,12})?|\\.\\d{1,12})'
 export type ConditionOperator = (typeof CONDITION_OPERATORS)[number]
 export type GoalConditionKind = 'requirement' | 'preference' | 'exclusion'
 
@@ -19,19 +21,17 @@ const conditionSchema = z.object({
 }).strict().superRefine((condition, context) => {
   if (condition.operator !== 'free_text' && !condition.field) context.addIssue({ code: 'custom', message: 'A field is required' })
   if (!['is_true', 'is_false'].includes(condition.operator) && !condition.value) context.addIssue({ code: 'custom', message: 'A value is required' })
-  if (['at_most', 'at_least'].includes(condition.operator) && !Number.isFinite(Number(condition.value))) context.addIssue({ code: 'custom', message: 'A numeric value is required' })
+  if (['at_most', 'at_least'].includes(condition.operator) && ((condition.value?.length??0)>NUMERIC_CONDITION_MAX_LENGTH || !new RegExp(`^${NUMERIC_CONDITION_PATTERN}$`).test(condition.value??'') || !Number.isFinite(Number(condition.value)))) context.addIssue({ code: 'custom', message: 'A bounded decimal value is required' })
 })
 const conditions = z.array(conditionSchema).max(30)
-const supportedCurrency = z.string().regex(/^[A-Z]{3}$/).refine((value) => Intl.supportedValuesOf('currency').includes(value), 'Unsupported currency')
+export const supportedCurrencySchema = z.string().regex(/^[A-Z]{3}$/).refine((value) => Intl.supportedValuesOf('currency').includes(value), 'Unsupported currency')
+export const goalValuesSchema=z.object({
+  summary:z.string().trim().min(1).max(1_000),searchFocus:z.string().trim().min(1).max(500).optional(),quantity:z.number().int().min(1).max(100_000).optional(),
+  maximumItemPrice:z.object({minorAmount:z.number().int().safe().min(0),currency:supportedCurrencySchema}).strict().optional(),budget:z.object({minorAmount:z.number().int().safe().min(0),currency:supportedCurrencySchema}).strict().optional(),
+  requirements:conditions,preferences:conditions,exclusions:conditions,
+}).strict()
 
-export const purchaseGoalSchema = z.object({
-  state: z.literal('draft'), id: z.string().min(1).max(100), revision: z.number().int().min(0), summary: z.string().trim().min(1).max(1_000),
-  searchFocus:z.string().trim().min(1).max(500).optional(),
-  quantity: z.number().int().min(1).max(100_000).optional(),
-  maximumItemPrice:z.object({minorAmount:z.number().int().safe().min(0),currency:supportedCurrency}).strict().optional(),
-  budget: z.object({ minorAmount: z.number().int().safe().min(0), currency: supportedCurrency }).strict().optional(),
-  requirements: conditions, preferences: conditions, exclusions: conditions,
-}).strict().superRefine((goal, context) => {
+export const purchaseGoalSchema = goalValuesSchema.extend({state:z.literal('draft'),id:z.string().min(1).max(100),revision:z.number().int().min(0)}).strict().superRefine((goal, context) => {
   const all = [...goal.requirements, ...goal.preferences, ...goal.exclusions]
   const seen = new Set<string>()
   for (const condition of all) {

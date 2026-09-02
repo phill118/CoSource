@@ -6,7 +6,7 @@ CoSource is a cross-merchant commerce intelligence and purchasing workspace wher
 
 ## Status
 
-This repository contains a human-authored Purchase Goal editor, deterministic constraint-driven sourcing, evidence-aware evaluation and comparison, a revisioned cross-merchant purchase plan, and real Shopify Global Catalog discovery through a provider-independent domain and same-origin gateway. Eleven WebMCP tools expose current intelligence, real-market search, evidence gaps, and bounded proposals. Agent search candidates remain separate until human engagement, and only the visible human review path can apply plan changes. No WebMCP tool can apply a plan proposal, create checkout, or provide payment.
+This repository contains a human-authored goal draft, visible agent interpretation proposals, explicit human goal commitment, deterministic constraint-driven sourcing, evidence-aware evaluation and comparison, a revisioned cross-merchant purchase plan, and real Shopify Global Catalog discovery through a provider-independent domain and same-origin gateway. Thirteen WebMCP tools expose current intelligence, bounded interpretation and plan proposals, real-market search, and evidence gaps. Agents cannot activate goals or apply plan changes. No WebMCP tool can create checkout or provide payment.
 
 The project is being prepared for The WebMCP Challenge. Its architectural principle is: humans provide intent and final authority; CoSource supplies trusted application and commerce intelligence; an AI agent plans and collaborates; WebMCP provides the structured browser interface; and authorised commerce providers remain the source of external commerce data.
 

@@ -3,6 +3,17 @@ import { currencyFractionDigits, MoneyDisplayError } from './money-display'
 
 export class MoneyInputError extends Error {}
 
+export function formatMoneyInput(minorAmount: number, currency: string): string {
+  if (!Number.isSafeInteger(minorAmount) || minorAmount < 0) throw new MoneyInputError('Amount must be a non-negative safe integer')
+  let fractionDigits: number
+  try { fractionDigits = currencyFractionDigits(currency) }
+  catch (error) { throw new MoneyInputError(error instanceof MoneyDisplayError ? error.message : 'Currency is invalid') }
+  const digits = minorAmount.toString()
+  if (fractionDigits === 0) return digits
+  const padded = digits.padStart(fractionDigits + 1, '0')
+  return `${padded.slice(0, -fractionDigits)}.${padded.slice(-fractionDigits)}`
+}
+
 export function parseMoneyInput(input: string, currency: string) {
   let fractionDigits: number
   try { fractionDigits = currencyFractionDigits(currency) }

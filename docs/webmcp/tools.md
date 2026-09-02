@@ -2,11 +2,13 @@
 
 Backend B1 makes WebMCP a transport adapter over the canonical application kernel. Tool handlers validate schemas and bound untrusted output, but all sourcing, evidence, evaluation, comparison, plan, and proposal operations delegate to the same live browser-session application used by React.
 
-CoSource uses the current imperative WebMCP API at `document.modelContext.registerTool()`. Each registration supplies `name`, `description`, a strict JSON `inputSchema`, `execute`, accurate annotations, and a shared `AbortSignal`. Aborting that signal unregisters the tools on React teardown. Registration is atomic from CoSource's perspective: if any one of the eleven registrations fails, the lifecycle owner immediately aborts the shared signal, resets the logical tool count to zero, and reports an error rather than leaving a partial set active. The application feature-detects `document.modelContext`; it does not polyfill WebMCP or imply that an agent is connected.
+CoSource uses the current imperative WebMCP API at `document.modelContext.registerTool()`. Each registration supplies `name`, `description`, a strict JSON `inputSchema`, `execute`, accurate annotations, and a shared `AbortSignal`. Aborting that signal unregisters the tools on React teardown. Registration is atomic from CoSource's perspective: if any one of the thirteen registrations fails, the lifecycle owner immediately aborts the shared signal, resets the logical tool count to zero, and reports an error rather than leaving a partial set active. The application feature-detects `document.modelContext`; it does not polyfill WebMCP or imply that an agent is connected.
 
-The eleven registered tools are:
+The thirteen registered tools are:
 
 - `get_purchase_goal`: returns only the current validated goal, or structured unavailability.
+- `get_goal_context`: returns bounded current draft context, separate active-goal context, session identity, and explicit human-authority guidance.
+- `propose_goal_interpretation`: validates and stores a structured, revision-bound interpretation proposal for human review. It cannot adopt, reject, commit, source, or mutate the active goal.
 - `get_purchase_plan`: returns the current plan identity, revisions, stale/status state, and bounded lightweight lines.
 - `evaluate_purchase_plan`: invokes the authoritative Pass 7 whole-plan evaluator.
 - `list_retained_products`: lists at most 50 concise canonical products introduced to the session workspace by explicit human detail, comparison, or plan engagement.
@@ -18,7 +20,9 @@ The eleven registered tools are:
 - `search_products`: searches real external commerce through the same-origin gateway using the declared country/currency only when they match the authoritative session market, and stores at most ten total session agent candidates across all pages without retaining them or mutating the plan. Each response exposes only products accepted into that canonical bound; pagination closes and its cursor becomes unusable when the workspace reaches ten.
 - `get_evidence_gaps`: returns bounded discovery and optional retained-product gaps, including unverifiable bulk quantity.
 
-Nine intelligence/status tools are read-only. `propose_plan_changes` changes proposal state only, while `search_products` changes only the bounded agent-candidate workspace; neither mutates the purchase plan. There is deliberately no `apply_plan_changes` tool. Proposal operations are limited to adding retained products, removing known lines, setting bounded quantities, selecting/clearing an offer belonging to the line product, and rebasing to the current validated human goal. Schemas reject additional properties, URLs, endpoints, raw provider parameters, and arbitrary object patches.
+Ten intelligence/status tools are read-only. `propose_goal_interpretation` changes interpretation-proposal state only, `propose_plan_changes` changes plan-proposal state only, and `search_products` changes only the bounded agent-candidate workspace. There is deliberately no agent tool for adopting, rejecting, committing, or activating a goal and no `apply_plan_changes` tool. Schemas reject additional properties, URLs, endpoints, raw provider parameters, and arbitrary object patches.
+
+Interpretation input bounds all strings and arrays, validates exact integer money and supported ISO currency through the goal domain, and excludes product/provider evidence, checkout instructions, and plan operations. Returned interpretation data is bounded and marked as validated agent input rather than commerce evidence.
 
 Product output is bounded by product, line, offer, option, attribute, description, and string limits. Truncation is explicit. Raw Shopify/UCP envelopes, media collections, policy links, and merchant handoff URLs are not exposed. Provider-created text is returned only in ordinary data fields and marked `untrusted_commerce_data`; tool instructions never incorporate or execute that text.
 
