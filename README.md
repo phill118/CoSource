@@ -6,9 +6,11 @@ CoSource is a cross-merchant commerce intelligence and purchasing workspace wher
 
 ## Status
 
-This repository contains a human-authored Purchase Goal editor, evidence-aware product evaluation and comparison, a revisioned cross-merchant purchase plan, and real discovery backed by the live Shopify Global Catalog through a provider-independent commerce domain and same-origin gateway. Seven read tools expose current goal, retained evidence, evaluation, comparison, and plan services. A proposal tool lets an agent request only bounded plan operations; a separate read tool reports proposal status. The visible human review area is the sole approval/application path, with stale-revision blocking and atomic application. No WebMCP tool can apply a plan proposal, create checkout, or provide payment.
+This repository contains a human-authored Purchase Goal editor, deterministic constraint-driven sourcing, evidence-aware evaluation and comparison, a revisioned cross-merchant purchase plan, and real Shopify Global Catalog discovery through a provider-independent domain and same-origin gateway. Eleven WebMCP tools expose current intelligence, real-market search, evidence gaps, and bounded proposals. Agent search candidates remain separate until human engagement, and only the visible human review path can apply plan changes. No WebMCP tool can apply a plan proposal, create checkout, or provide payment.
 
 The project is being prepared for The WebMCP Challenge. Its architectural principle is: humans provide intent and final authority; CoSource supplies trusted application and commerce intelligence; an AI agent plans and collaborates; WebMCP provides the structured browser interface; and authorised commerce providers remain the source of external commerce data.
+
+Browser orchestration is owned by a provider-independent application kernel. React and WebMCP share its sourcing, evidence, evaluation, comparison, planning, and proposal use-cases; neither adapter owns parallel business workflows.
 
 ## Local development
 

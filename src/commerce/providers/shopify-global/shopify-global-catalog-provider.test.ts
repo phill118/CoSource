@@ -97,6 +97,7 @@ function providerFor(body: unknown, status = 200, headers?: HeadersInit) {
 }
 
 describe('ShopifyGlobalCatalogProvider mapping', () => {
+  it('maps only canonical supported sourcing constraints into Shopify search fields',async()=>{const {provider,fetchImplementation}=providerFor(envelope({ucp:{version:'2026-04-08'},products:[]}));await provider.search({query:'raincoats',context:{country:'GB',currency:'GBP',intent:'Equip students'},pageSize:6,view:'offer',filters:{available:true,shipsToCountry:'GB',maximumPrice:{minorAmount:3000,currency:'GBP'},condition:'new',attributes:[{name:'Color',values:['Blue']},{name:'Size',values:['M']}]}});const request=JSON.parse(String(fetchImplementation.mock.calls[0]?.[1]?.body)),catalog=request.params.arguments.catalog;expect(catalog).toMatchObject({query:'raincoats',context:{address_country:'GB',currency:'GBP',intent:'Equip students'},filters:{available:true,ships_to:{country:'GB'},price:{max:3000},condition:['new'],attributes:[{name:'Color',values:['Blue']},{name:'Size',values:['M']}]},view:'offer'});expect(JSON.stringify(catalog)).not.toMatch(/endpoint|provider|raw_filter/)})
   it('uses the sanitized Pass 1 fixture without weakening required-field validation', () => {
     expect(productSchema.safeParse(pass1Fixture.lookup_excerpt.product).success).toBe(false)
 

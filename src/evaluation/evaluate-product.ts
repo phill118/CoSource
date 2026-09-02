@@ -69,12 +69,11 @@ function evaluateCondition(condition: GoalCondition, kind: GoalConditionKind, pr
 }
 
 function evaluateBudget(goal: PurchaseGoal, offer?: MerchantOffer): BudgetEvaluation | undefined {
-  if (!goal.budget) return undefined
+  if (!goal.maximumItemPrice) return undefined
   if (!offer) return { status: 'unknown', evidence: { kind: 'unknown' }, reason: 'No single merchant offer was selected for item-price budget evaluation.' }
-  if (offer.price.currency !== goal.budget.currency) return { status: 'unknown', evidence: { kind: 'unknown', value: `${offer.price.currency} ${offer.price.minorAmount}` }, itemPrice: offer.price, reason: `Returned currency ${offer.price.currency} cannot be compared with goal budget ${goal.budget.currency} without FX data.` }
-  if (goal.quantity && goal.quantity > 1) return { status: 'unknown', evidence: { kind: offer.provenance.kind, value: String(offer.price.minorAmount) }, itemPrice: offer.price, reason: 'Quantity is greater than one, but per-unit or pack semantics are not established; item-price subtotal was not derived.' }
-  const status = offer.price.minorAmount <= goal.budget.minorAmount ? 'satisfied' : 'failed'
-  return { status, evidence: { kind: 'cosource_derived', value: String(offer.price.minorAmount) }, itemPrice: offer.price, reason: `Same-currency item price was compared with the goal budget. This excludes shipping and tax and is not a final total.` }
+  if (offer.price.currency !== goal.maximumItemPrice.currency) return { status: 'unknown', evidence: { kind: 'unknown', value: `${offer.price.currency} ${offer.price.minorAmount}` }, itemPrice: offer.price, reason: `Returned currency ${offer.price.currency} cannot be compared with maximum item price ${goal.maximumItemPrice.currency} without FX data.` }
+  const status = offer.price.minorAmount <= goal.maximumItemPrice.minorAmount ? 'satisfied' : 'failed'
+  return { status, evidence: { kind: 'cosource_derived', value: String(offer.price.minorAmount) }, itemPrice: offer.price, reason: `Same-currency item price was compared with the maximum item price. This excludes shipping and tax and is not a final total.` }
 }
 
 export function evaluateProductAgainstGoal(goal: PurchaseGoal, product: ProductCluster, offer?: MerchantOffer): ProductEvaluation {

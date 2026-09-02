@@ -10,7 +10,10 @@ export interface CatalogContext {
   country?: string
   language?: string
   currency?: string
+  intent?: string
 }
+export type CatalogProductCondition='new'|'secondhand'
+export type CatalogTaxonomyAttributeName='Color'|'Size'|'Target gender'
 
 export interface CatalogSearchInput {
   query: string
@@ -21,7 +24,10 @@ export interface CatalogSearchInput {
     available?: boolean
     shipsToCountry?: string
     maximumPrice?: Money
+    condition?: CatalogProductCondition
+    attributes?: Array<{name:CatalogTaxonomyAttributeName;values:string[]}>
   }
+  view?: 'offer'
 }
 
 export interface CatalogSearchResult {

@@ -46,7 +46,7 @@ export function createPlanChangeProposal(input:unknown,state:ProposalState,makeI
 export function applyProposalOperations(proposal:PlanChangeProposal,state:ProposalState):{ok:true;plan:PurchasePlan}|{ok:false;error:string}{
   let plan=state.plan
   try{for(const operation of proposal.operations){const before=plan
-    if(operation.type==='add_retained_product'){const product=findByProviderIdentity(state.retainedProducts,operation.product);if(!product)return{ok:false,error:'A retained product is no longer available.'};plan=addProductToPlan(plan,product,operation.lineId)}
+    if(operation.type==='add_retained_product'){const product=findByProviderIdentity(state.retainedProducts,operation.product);if(!product)return{ok:false,error:'A retained product is no longer available.'};const base=plan.lines.length===0&&state.goal?{...plan,goalId:state.goal.id,goalRevision:state.goal.revision}:plan;plan=addProductToPlan(base,product,operation.lineId)}
     else if(operation.type==='remove_plan_line')plan=removePlanLine(plan,operation.lineId)
     else if(operation.type==='set_quantity')plan=setPlanLineQuantity(plan,operation.lineId,operation.quantity)
     else if(operation.type==='select_merchant_offer')plan=selectPlanLineOffer(plan,operation.lineId,operation.offer,state.retainedProducts)

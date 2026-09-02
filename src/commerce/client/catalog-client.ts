@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { COMMERCE_PROVIDERS, type ProviderIdentity } from '../domain/commerce'
 import type { CatalogProductResult, CatalogSearchResult } from '../providers/catalog-provider'
 
 const provenance = z.object({ kind: z.enum(['provider_explicit', 'provider_inferred', 'cosource_derived', 'unknown']), provider: z.literal('shopify_global_catalog').optional(), sourcePath: z.string().optional() })
@@ -51,8 +52,12 @@ async function post<T>(path: string, body: unknown, schema: z.ZodType<T>): Promi
   return parsed.data.data
 }
 
-export interface SearchRequest { query: string; country: string; currency: string; limit?: number; cursor?: string }
+export interface SearchRequest { query:string;country:string;currency:string;intent?:string;limit?:number;cursor?:string;available?:boolean;shipsTo?:string;maximumPrice?:{minorAmount:number;currency:string};condition?:'new'|'secondhand';attributes?:Array<{name:'Color'|'Size'|'Target gender';values:string[]}>;view?:'offer' }
+export interface ProductRequest { product:ProviderIdentity;country:string;currency:string;selectedOptions?:Array<{name:string;value:string}> }
 export const catalogClient = {
   search: (input: SearchRequest) => post<CatalogSearchResult>('/api/catalog/search', input, searchResult as z.ZodType<CatalogSearchResult>),
-  product: (productId: string, selectedOptions?: Array<{ name: string; value: string }>) => post<CatalogProductResult>('/api/catalog/product', { productId, selectedOptions, country: 'GB', currency: 'GBP' }, productResult as z.ZodType<CatalogProductResult>),
+  product: (input: ProductRequest) => {
+    if(input.product.provider!==COMMERCE_PROVIDERS.shopifyGlobalCatalog)throw new CatalogClientError('unsupported_provider','The selected commerce provider is not supported by this catalog gateway')
+    return post<CatalogProductResult>('/api/catalog/product',{productId:input.product.id,selectedOptions:input.selectedOptions,country:input.country,currency:input.currency},productResult as z.ZodType<CatalogProductResult>)
+  },
 }

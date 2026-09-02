@@ -1,6 +1,6 @@
 # Purchase plan
 
-A `PurchasePlan` is authoritative application state with a stable identifier, a monotonic revision, and the Purchase Goal identifier and revision it references. Plan-line identifiers must be unique. Lines retain canonical product identity, quantity and unit semantics, and an optional selected merchant-offer identity. Multiple offers require an explicit human choice; a sole offer can be used neutrally.
+A `PurchasePlan` is authoritative application state with a stable identifier, a monotonic revision, and the Purchase Goal identifier and revision it references. An empty plan is neutral draft state: placeholder goal binding does not make it stale and no overall-budget outcome is claimed. The first human-added or human-approved agent-proposed line binds it to the current active goal. Plan-line identifiers must be unique. Lines retain canonical product identity, quantity and unit semantics, and an optional selected merchant-offer identity. Multiple offers require an explicit human choice; a sole offer can be used neutrally.
 
 Plan evaluation reuses Pass 6 product evaluation. It reports mandatory failures, exclusion violations, unknown requirements, satisfied preferences, merchant count, currencies, and plan readiness. A changed goal revision marks the plan stale until the user explicitly re-evaluates it.
 
@@ -12,7 +12,7 @@ Known conflicts, including a failed plan budget, take status precedence over inc
 
 All canonical product, offer, and merchant identities are matched by provider plus opaque ID through one structured identity-key utility. Equal textual IDs from different providers do not collide. The UI state and plan evaluator use the same rule.
 
-Plan changes use bounded operations rather than arbitrary line patches: add a canonical product, remove by line ID, set an integer quantity from 1 through 100,000, select or clear an offer verified against the line's canonical product, and explicitly rebase to a goal revision. Successful changes increment revision once; rejected or no-op changes do not alter identity or revision.
+Plan changes use bounded operations rather than arbitrary line patches: add a canonical product, remove by line ID, set an integer quantity from 1 through 100,000, select or clear an offer verified against the line's canonical product, and explicitly rebase to a goal revision. Successful changes increment revision once; rejected or no-op changes do not alter identity or revision. Once populated, a later active-goal revision makes the plan stale until explicit rebase; goal editing never silently rebases it.
 
 Discovery results and retained decision evidence are separate browser-session state. Adding a product retains its canonical `ProductCluster` in a provider-keyed evidence registry alongside the lightweight plan. Later searches can replace the visible discovery page without erasing evidence used by existing plan lines. If the authoritative browser commerce path later returns the same canonical identity—such as richer product detail—the retained object is replaced wholesale; unrelated results are not retained automatically. Evidence refresh does not mutate or revise the plan.
 

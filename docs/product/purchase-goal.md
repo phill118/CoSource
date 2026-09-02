@@ -11,3 +11,6 @@ Every edit increments the goal revision while its identity remains stable for th
 Finalisation also requires condition identifiers to be unique across requirements, preferences, and exclusions. Ambiguous duplicate identities are rejected rather than renamed.
 
 The optional **Use goal summary as search** action copies the literal summary into the existing keyword input. It performs no interpretation, enrichment, matching, ranking, or recommendation.
+# Pass 10 sourcing fields
+
+`searchFocus` is the human-entered product/category being sourced and remains distinct from the full outcome summary. `maximumItemPrice` is canonical `Money` for a single returned item offer and is separate from the overall `budget` used by whole-plan evaluation. CoSource performs no FX and never treats the overall budget as a unit-price ceiling.

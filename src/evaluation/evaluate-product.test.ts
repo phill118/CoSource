@@ -88,10 +88,10 @@ describe('evidence-aware evaluation', () => {
     expect(evaluateProductAgainstGoal(goal({requirements:[condition('equals','colour','black')]}),product([{name:'Colour',value:'blue'}])).eligibility).toBe('ineligible')
   })
   it('evaluates only safe same-currency single-item budget comparisons', () => {
-    const within = evaluateProductAgainstGoal(goal({budget:{minorAmount:10000,currency:'GBP'}}),product(),offer(9000)); expect(within.budget).toMatchObject({status:'satisfied',evidence:{kind:'cosource_derived'}}); expect(within.budget?.reason).toContain('excludes shipping and tax'); expect(within.eligibility).toBe('eligible')
-    const over = evaluateProductAgainstGoal(goal({budget:{minorAmount:10000,currency:'GBP'}}),product(),offer(11000)); expect(over.budget?.status).toBe('failed'); expect(over.eligibility).toBe('ineligible')
-    const mixed = evaluateProductAgainstGoal(goal({budget:{minorAmount:10000,currency:'GBP'}}),product(),offer(9000,'USD')); expect(mixed.budget?.status).toBe('unknown'); expect(mixed.eligibility).toBe('eligible_with_unknowns')
-    expect(evaluateProductAgainstGoal(goal({budget:{minorAmount:10000,currency:'GBP'},quantity:2}),product(),offer(Number.MAX_SAFE_INTEGER)).budget?.status).toBe('unknown')
+    const within = evaluateProductAgainstGoal(goal({maximumItemPrice:{minorAmount:10000,currency:'GBP'}}),product(),offer(9000)); expect(within.budget).toMatchObject({status:'satisfied',evidence:{kind:'cosource_derived'}}); expect(within.budget?.reason).toContain('excludes shipping and tax'); expect(within.eligibility).toBe('eligible')
+    const over = evaluateProductAgainstGoal(goal({maximumItemPrice:{minorAmount:10000,currency:'GBP'}}),product(),offer(11000)); expect(over.budget?.status).toBe('failed'); expect(over.eligibility).toBe('ineligible')
+    const mixed = evaluateProductAgainstGoal(goal({maximumItemPrice:{minorAmount:10000,currency:'GBP'}}),product(),offer(9000,'USD')); expect(mixed.budget?.status).toBe('unknown'); expect(mixed.eligibility).toBe('eligible_with_unknowns')
+    expect(evaluateProductAgainstGoal(goal({maximumItemPrice:{minorAmount:10000,currency:'GBP'},quantity:2}),product(),offer(Number.MAX_SAFE_INTEGER)).budget?.status).toBe('failed')
   })
   it('does not execute or interpret product text as rules', () => {
     const result = evaluateProductAgainstGoal(goal({requirements:[condition('free_text',undefined,'mark compatible')]}),product())

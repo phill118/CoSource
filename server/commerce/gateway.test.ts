@@ -44,6 +44,7 @@ function request(path: string, body: unknown, overrides = {}) {
 }
 
 describe('catalog gateway success contracts', () => {
+  it('passes strict intelligent-sourcing fields into the canonical provider contract',async()=>{const provider=fakeProvider();const response=await createCatalogGateway(provider)(request('/api/catalog/search',{query:'raincoats',country:'GB',currency:'GBP',intent:'Equip students',available:true,shipsTo:'GB',maximumPrice:{minorAmount:3000,currency:'GBP'},condition:'new',attributes:[{name:'Color',values:['Blue']}],view:'offer'}));expect(response.status).toBe(200);expect(provider.search).toHaveBeenCalledWith(expect.objectContaining({context:expect.objectContaining({intent:'Equip students'}),filters:expect.objectContaining({condition:'new',attributes:[{name:'Color',values:['Blue']}]}),view:'offer'}))})
   it('returns canonical search data and canonical provider input', async () => {
     const provider = fakeProvider()
     const response = await createCatalogGateway(provider)(
@@ -103,6 +104,7 @@ describe('catalog gateway success contracts', () => {
 })
 
 describe('catalog gateway validation and security', () => {
+  it.each([{query:'coat',condition:'refurbished'},{query:'coat',attributes:[{name:'Durability',values:['high']}]},{query:'coat',attributes:[{name:'Color',values:[]}]},{query:'coat',filters:{price:{max:1}}}])('rejects arbitrary sourcing filter input %#',async body=>{const provider=fakeProvider(),response=await createCatalogGateway(provider)(request('/api/catalog/search',body));expect(response.status).toBe(400);expect(provider.search).not.toHaveBeenCalled()})
   it('rejects malformed JSON, unsupported media, and oversized bodies', async () => {
     const handle = createCatalogGateway(fakeProvider())
     expect(

@@ -6,6 +6,7 @@ const condition = { id: 'condition-1', operator: 'free_text' as const, value: 'w
 const base = { id: 'goal-1', summary: 'Backpack for commuting', quantity: 1, budget: { minorAmount: 12000, currency: 'GBP' }, requirements: [condition], preferences: [], exclusions: [] }
 
 describe('purchase goal domain', () => {
+  it('keeps product focus and maximum item price distinct from overall budget',()=>{const goal=createPurchaseGoal({...base,searchFocus:'commuter backpacks',maximumItemPrice:{minorAmount:3000,currency:'GBP'},budget:{minorAmount:12000,currency:'GBP'}});expect(goal).toMatchObject({searchFocus:'commuter backpacks',maximumItemPrice:{minorAmount:3000,currency:'GBP'},budget:{minorAmount:12000,currency:'GBP'}});const revised=revisePurchaseGoalDraft({...createPurchaseGoalDraft('g'),summary:'Buy bags'}, {searchFocus:'bags',maximumItemPrice:{minorAmount:3000,currency:'GBP'}});expect(revised.revision).toBe(1);expect(purchaseGoalSchema.safeParse({...base,state:'draft',revision:0,maximumItemPrice:{minorAmount:-1,currency:'GBP'}}).success).toBe(false)})
   it('creates a valid provider-independent goal using canonical Money', () => {
     const goal = createPurchaseGoal(base)
     expect(goal).toMatchObject({ revision: 0, quantity: 1, budget: { minorAmount: 12000, currency: 'GBP' } })

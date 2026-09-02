@@ -7,7 +7,7 @@ export type GoalConditionKind = 'requirement' | 'preference' | 'exclusion'
 
 export interface GoalCondition { id: string; operator: ConditionOperator; field?: string; value?: string }
 interface GoalFields {
-  id: string; revision: number; summary: string; quantity?: number; budget?: Money
+  id: string; revision: number; summary: string; searchFocus?:string; quantity?: number; maximumItemPrice?:Money; budget?: Money
   requirements: GoalCondition[]; preferences: GoalCondition[]; exclusions: GoalCondition[]
 }
 export interface PurchaseGoalDraft extends GoalFields { state: 'draft' }
@@ -26,7 +26,9 @@ const supportedCurrency = z.string().regex(/^[A-Z]{3}$/).refine((value) => Intl.
 
 export const purchaseGoalSchema = z.object({
   state: z.literal('draft'), id: z.string().min(1).max(100), revision: z.number().int().min(0), summary: z.string().trim().min(1).max(1_000),
+  searchFocus:z.string().trim().min(1).max(500).optional(),
   quantity: z.number().int().min(1).max(100_000).optional(),
+  maximumItemPrice:z.object({minorAmount:z.number().int().safe().min(0),currency:supportedCurrency}).strict().optional(),
   budget: z.object({ minorAmount: z.number().int().safe().min(0), currency: supportedCurrency }).strict().optional(),
   requirements: conditions, preferences: conditions, exclusions: conditions,
 }).strict().superRefine((goal, context) => {
@@ -37,8 +39,8 @@ export const purchaseGoalSchema = z.object({
     seen.add(condition.id)
   }
 }).transform((goal): PurchaseGoal => ({
-  state: 'validated', id: goal.id, revision: goal.revision, summary: goal.summary,
-  quantity: goal.quantity, budget: goal.budget, requirements: goal.requirements,
+  state: 'validated', id: goal.id, revision: goal.revision, summary: goal.summary,searchFocus:goal.searchFocus,
+  quantity: goal.quantity,maximumItemPrice:goal.maximumItemPrice, budget: goal.budget, requirements: goal.requirements,
   preferences: goal.preferences, exclusions: goal.exclusions,
 }))
 

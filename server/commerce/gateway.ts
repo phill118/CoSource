@@ -78,12 +78,14 @@ function contextFrom(input: {
   country?: string
   language?: string
   currency?: string
+  intent?:string
 }) {
-  if (!input.country && !input.language && !input.currency) return undefined
+  if (!input.country && !input.language && !input.currency && !input.intent) return undefined
   return {
     country: input.country,
     language: input.language,
     currency: input.currency,
+    intent:input.intent,
   }
 }
 
@@ -123,7 +125,10 @@ export function createCatalogGateway(provider: CatalogProvider) {
               available: input.available,
               shipsToCountry: input.shipsTo,
               maximumPrice: input.maximumPrice,
+              condition:input.condition,
+              attributes:input.attributes,
             },
+            view:input.view,
           })
           return response(200, { ok: true, data })
         }

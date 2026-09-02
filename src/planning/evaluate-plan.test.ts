@@ -76,8 +76,8 @@ describe('whole-plan budget', () => {
     const expensive = product('expensive', 'GBP', 1, 40_000), unresolved = product('unresolved', 'GBP', 2)
     const result = evaluatePurchasePlan(budgetGoal(30_000), planFor([line(expensive), line(unresolved, { selectedOffer: undefined, offerSelection: undefined })]), [expensive, unresolved])
     expect(result.budget?.status).toBe('unknown')
-    expect(result.mandatoryFailures).toBeGreaterThan(0)
-    expect(result.status).toBe('has_known_conflicts')
+    expect(result.mandatoryFailures).toBe(0)
+    expect(result.status).toBe('incomplete')
     expect(result.knownSubtotals).toEqual([{ currency: 'GBP', minorAmount: 40_000 }])
   })
 })
@@ -97,7 +97,7 @@ describe('other plan evaluation', () => {
     expect(result.knownSubtotals).toEqual(expect.arrayContaining([{ currency: 'GBP', minorAmount: 2000 }, { currency: 'USD', minorAmount: 1000 }]))
     expect(result.unresolvedCosts[0]).toContain('no merchant offer')
   })
-  it('marks changed goal revision stale', () => {
-    expect(evaluatePurchasePlan({ ...goal, revision: 1 }, createPurchasePlan('p', 'g', 0), []).stale).toBe(true)
+  it('keeps an empty placeholder plan neutral after a goal revision change', () => {
+    expect(evaluatePurchasePlan({ ...goal, revision: 1 }, createPurchasePlan('p', 'g', 0), []).stale).toBe(false)
   })
 })

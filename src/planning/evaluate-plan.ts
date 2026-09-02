@@ -32,6 +32,10 @@ function evaluatePlanBudget(goal: PurchaseGoal, subtotals: Map<string, number>, 
 }
 
 export function evaluatePurchasePlan(goal: PurchaseGoal, plan: PurchasePlan, products: ProductCluster[]): PlanEvaluation {
+  if (plan.lines.length === 0) return {
+    status: 'draft', stale: false, mandatoryFailures: 0, exclusionViolations: 0, mandatoryUnknowns: 0,
+    preferencesSatisfied: 0, preferencesUnknown: 0, merchantCount: 0, currencies: [], knownSubtotals: [], unresolvedCosts: [],
+  }
   const byId = new Map(products.map((product) => [providerIdentityKey(product.identity), product]))
   let mandatoryFailures = 0, exclusionViolations = 0, mandatoryUnknowns = 0
   let preferencesSatisfied = 0, preferencesUnknown = 0, costEvidenceIncomplete = false
@@ -82,8 +86,7 @@ export function evaluatePurchasePlan(goal: PurchaseGoal, plan: PurchasePlan, pro
   const budget = evaluatePlanBudget(goal, subtotals, costEvidenceIncomplete)
   const stale = plan.goalId !== goal.id || plan.goalRevision !== goal.revision
   const hasKnownConflict = Boolean(mandatoryFailures || exclusionViolations || budget?.status === 'failed')
-  const status = plan.lines.length === 0 ? 'draft'
-    : hasKnownConflict ? 'has_known_conflicts'
+  const status = hasKnownConflict ? 'has_known_conflicts'
       : stale || costEvidenceIncomplete || budget?.status === 'unknown' ? 'incomplete'
         : mandatoryUnknowns ? 'has_unverified_requirements' : 'ready_on_known_evidence'
   return { status, stale, mandatoryFailures, exclusionViolations, mandatoryUnknowns, preferencesSatisfied,

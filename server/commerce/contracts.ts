@@ -9,7 +9,9 @@ const contextShape = {
   country: countrySchema.optional(),
   language: languageSchema.optional(),
   currency: currencySchema.optional(),
+  intent:z.string().trim().min(1).max(1_000).optional(),
 }
+const attributeSchema=z.object({name:z.enum(['Color','Size','Target gender']),values:z.array(z.string().trim().min(1).max(200)).min(1).max(20)}).strict()
 
 export const searchRequestSchema = z
   .object({
@@ -26,6 +28,9 @@ export const searchRequestSchema = z
       })
       .strict()
       .optional(),
+    condition:z.enum(['new','secondhand']).optional(),
+    attributes:z.array(attributeSchema).max(3).optional(),
+    view:z.literal('offer').optional(),
   })
   .strict()
 

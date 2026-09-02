@@ -49,6 +49,7 @@ function validateContext(context: CatalogContext | undefined): void {
   if (context?.currency !== undefined && !/^[A-Z]{3}$/.test(context.currency)) {
     throw new CommerceProviderError('invalid_request', 'Context currency must be an uppercase ISO 4217 code')
   }
+  if (context?.intent !== undefined && (context.intent.length < 1 || context.intent.length > 1_000)) throw new CommerceProviderError('invalid_request', 'Context intent must contain 1 to 1000 characters')
 }
 
 function parseRetryAfter(value: string | null): number | undefined {
@@ -109,12 +110,15 @@ export class ShopifyGlobalCatalogProvider implements CatalogProvider {
     if (input.filters?.maximumPrice) {
       filters.price = { max: input.filters.maximumPrice.minorAmount }
     }
+    if (input.filters?.condition) filters.condition = [input.filters.condition]
+    if (input.filters?.attributes?.length) filters.attributes = input.filters.attributes
 
     const structuredContent = await this.#call('search_catalog', {
       catalog: {
         query,
         context: mapContext(input.context),
         filters,
+        view: input.view,
         pagination: { limit: pageSize, cursor: input.cursor },
       },
     })
@@ -280,5 +284,6 @@ function mapContext(context: CatalogContext | undefined): Record<string, string>
   if (context.country) mapped.address_country = context.country
   if (context.language) mapped.language = context.language
   if (context.currency) mapped.currency = context.currency
+  if (context.intent) mapped.intent = context.intent
   return mapped
 }

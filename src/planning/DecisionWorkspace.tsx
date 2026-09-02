@@ -1,11 +1,9 @@
 import type { ProductCluster, ProviderIdentity } from '../commerce/domain/commerce'
-import { findByProviderIdentity, providerIdentityKey, sameProviderIdentity } from '../commerce/domain/provider-identity'
+import { providerIdentityKey, sameProviderIdentity } from '../commerce/domain/provider-identity'
 import { formatMoney } from '../commerce/domain/money-display'
 import type { PurchaseGoal } from '../goals/domain/purchase-goal'
-import { evaluateProductAgainstGoal } from '../evaluation/evaluate-product'
-import { compareProductEvaluations } from '../comparison/compare-products'
-import { evaluatePurchasePlan, neutralOffer } from './evaluate-plan'
-import type { PurchasePlanController } from './use-purchase-plan'
+import type { ProductComparison } from '../comparison/domain/product-comparison'
+import type { PlanEvaluation, PurchasePlan } from './domain/purchase-plan'
 import './DecisionWorkspace.css'
 
 const outcomeLabels = {
@@ -16,18 +14,10 @@ const outcomeLabels = {
   equivalent_on_known_evidence: 'Equivalent on known evidence',
 }
 
-export function DecisionWorkspace({ goal, products, evidenceProducts, planning, comparisonIds, onClearComparison }: {
-  goal: PurchaseGoal; products: ProductCluster[]; evidenceProducts: ProductCluster[]; planning:PurchasePlanController; comparisonIds: ProviderIdentity[]; onClearComparison: () => void
+export function DecisionWorkspace({ evidenceProducts, plan, planEvaluation, comparison, onClearComparison, onAddProduct, onRemoveLine, onSetQuantity, onSelectOffer, onRebase }: {
+  goal: PurchaseGoal; products: ProductCluster[]; evidenceProducts: ProductCluster[]; plan:PurchasePlan;planEvaluation:PlanEvaluation;comparison?:ProductComparison;comparisonIds: ProviderIdentity[]; onClearComparison: () => void
+  onAddProduct:(identity:ProviderIdentity)=>void;onRemoveLine:(lineId:string)=>void;onSetQuantity:(lineId:string,quantity:number)=>void;onSelectOffer:(lineId:string,offer?:ProviderIdentity)=>void;onRebase:()=>void
 }) {
-  const selected = comparisonIds.map((identity) => findByProviderIdentity(products, identity))
-    .filter((product): product is ProductCluster => Boolean(product))
-  const comparison = selected.length === 2 ? compareProductEvaluations(
-    { product: selected[0]!.identity, title: selected[0]!.title.value,
-      evaluation: evaluateProductAgainstGoal(goal, selected[0]!, neutralOffer(selected[0]!)) },
-    { product: selected[1]!.identity, title: selected[1]!.title.value,
-      evaluation: evaluateProductAgainstGoal(goal, selected[1]!, neutralOffer(selected[1]!)) },
-  ) : undefined
-  const planEvaluation = evaluatePurchasePlan(goal, planning.plan, evidenceProducts)
   return <section className="decision-workspace" aria-labelledby="decision-title">
     <p className="eyebrow">3 · Compare and plan</p><h2 id="decision-title">Human decision workspace</h2>
     <p>Comparison uses known evaluation dimensions without a score. Adding a product remains your decision.</p>
@@ -41,13 +31,13 @@ export function DecisionWorkspace({ goal, products, evidenceProducts, planning, 
           <div><dt>Exclusion violations</dt><dd>{candidate.metrics.exclusionViolations}</dd></div>
           <div><dt>Preferences satisfied / unknown</dt><dd>{candidate.metrics.preferencesSatisfied} / {candidate.metrics.preferencesUnknown}</dd></div>
           <div><dt>Evidence provided / inferred / derived / unknown</dt><dd>{candidate.evidence.provided} / {candidate.evidence.inferred} / {candidate.evidence.derived} / {candidate.evidence.unknown}</dd></div>
-        </dl><button onClick={() => { const product = findByProviderIdentity(products, candidate.product); if (product) planning.addProduct(product) }}>Add to purchase plan</button>
+        </dl><button onClick={() => onAddProduct(candidate.product)}>Add to purchase plan</button>
       </article>)}</div>
       <h4>{outcomeLabels[comparison.outcome]}</h4>{comparison.reasons.map((reason) => <p key={reason}>{reason}</p>)}
       <p className="muted">{comparison.priceReason}</p>
     </section>}
     <section className="plan-panel">
-      <div className="workspace-head"><div><h3>Purchase plan</h3><span>Plan revision {planning.plan.revision} · Goal revision {planning.plan.goalRevision}</span></div>{planEvaluation.stale && <button onClick={planning.rebaseToGoal}>Re-evaluate with current goal</button>}</div>
+      <div className="workspace-head"><div><h3>Purchase plan</h3><span>Plan revision {plan.revision} · Goal revision {plan.goalRevision}</span></div>{planEvaluation.stale && <button onClick={onRebase}>Re-evaluate with current goal</button>}</div>
       {planEvaluation.stale && <p className="stale-warning" role="alert">The goal changed after this plan was assembled. Existing evaluation is stale.</p>}
       <p>Status: <strong>{planEvaluation.status.replaceAll('_', ' ')}</strong></p>
       {planEvaluation.budget && <div className={`plan-budget budget-${planEvaluation.budget.status}`}>
@@ -55,15 +45,15 @@ export function DecisionWorkspace({ goal, products, evidenceProducts, planning, 
         <p>Goal budget: {formatMoney(planEvaluation.budget.goalBudget)}{planEvaluation.budget.comparableSubtotal && <> · Safely known comparable subtotal: {formatMoney(planEvaluation.budget.comparableSubtotal)}</>}</p>
       </div>}
       <p>Known conflicts: {planEvaluation.mandatoryFailures + planEvaluation.exclusionViolations} · Unverified requirements: {planEvaluation.mandatoryUnknowns} · Preferences satisfied / unknown: {planEvaluation.preferencesSatisfied} / {planEvaluation.preferencesUnknown}</p>
-      {planning.plan.lines.length === 0 ? <p className="muted">No products added. Compare candidates or add one from search.</p> : <div className="plan-lines">{planning.plan.lines.map((line) => {
+      {plan.lines.length === 0 ? <p className="muted">No products added. Compare candidates or add one from search.</p> : <div className="plan-lines">{plan.lines.map((line) => {
         const product = evidenceProducts.find((item) => sameProviderIdentity(item.identity, line.product))
         return <article key={line.id}><div><h4>{line.productTitle}</h4>
-          <label>Quantity <input type="number" min="1" max="100000" value={line.quantity ?? 1} onChange={(event) => { const quantity=Number(event.target.value); if(Number.isInteger(quantity)&&quantity>=1&&quantity<=100_000)planning.setQuantity(line.id,quantity) }}/></label>
-          {product && product.offers.length > 1 && <label>Merchant offer <select value={line.selectedOffer ? providerIdentityKey(line.selectedOffer) : ''} onChange={(event) => { const offer = product.offers.find((item) => providerIdentityKey(item.identity) === event.target.value); planning.selectOffer(line.id, offer?.identity) }}>
+          <label>Quantity <input type="number" min="1" max="100000" value={line.quantity ?? 1} onChange={(event) => { const quantity=Number(event.target.value); if(Number.isInteger(quantity)&&quantity>=1&&quantity<=100_000)onSetQuantity(line.id,quantity) }}/></label>
+          {product && product.offers.length > 1 && <label>Merchant offer <select value={line.selectedOffer ? providerIdentityKey(line.selectedOffer) : ''} onChange={(event) => { const offer = product.offers.find((item) => providerIdentityKey(item.identity) === event.target.value); onSelectOffer(line.id, offer?.identity) }}>
             <option value="">Not selected</option>{product.offers.map((offer) => <option key={providerIdentityKey(offer.identity)} value={providerIdentityKey(offer.identity)}>{offer.merchant?.name || offer.merchant?.domain || offer.identity.id} — {formatMoney(offer.price)}</option>)}
           </select></label>}
           {product && product.offers.length === 1 && <p className="muted">Sole returned offer available for evidence.</p>}
-        </div><button className="remove" onClick={() => planning.removeLine(line.id)}>Remove</button></article>
+        </div><button className="remove" onClick={() => onRemoveLine(line.id)}>Remove</button></article>
       })}</div>}
       <div className="plan-summary"><p>Selected merchants: {planEvaluation.merchantCount}</p><p>Currencies: {planEvaluation.currencies.join(', ') || 'None selected'}</p>
         <h4>Known item-price subtotals</h4>{planEvaluation.knownSubtotals.length ? planEvaluation.knownSubtotals.map((total) => <strong key={total.currency}>{formatMoney(total)}</strong>) : <p className="muted">No safely calculable subtotal.</p>}
