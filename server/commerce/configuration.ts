@@ -4,13 +4,15 @@ export const DEVELOPMENT_SHOPIFY_AGENT_PROFILE =
   'https://shopify.dev/ucp/agent-profiles/2026-04-08/valid-with-capabilities.json'
 
 export const DEFAULT_API_PORT = 8787
-export const API_HOST = '127.0.0.1'
+export const DEVELOPMENT_API_HOST = '127.0.0.1'
+export const PRODUCTION_API_HOST = '0.0.0.0'
 
 const httpsUrlSchema = z.url().refine((value) => new URL(value).protocol === 'https:')
 
 export interface ServerCommerceConfiguration {
   agentProfileUrl: string
   apiPort: number
+  apiHost: string
 }
 
 export function loadServerCommerceConfiguration(
@@ -24,12 +26,18 @@ export function loadServerCommerceConfiguration(
   const agentProfileUrl = httpsUrlSchema.parse(
     configuredProfile ?? DEVELOPMENT_SHOPIFY_AGENT_PROFILE,
   )
-  const requestedPort = environment.COSOURCE_API_PORT
-    ? Number(environment.COSOURCE_API_PORT)
+  const requestedPort = environment.PORT
+    ? Number(environment.PORT)
+    : environment.COSOURCE_API_PORT
+      ? Number(environment.COSOURCE_API_PORT)
     : DEFAULT_API_PORT
   if (!Number.isSafeInteger(requestedPort) || requestedPort < 1 || requestedPort > 65_535) {
-    throw new Error('COSOURCE_API_PORT must be a valid TCP port')
+    throw new Error('PORT must be a valid TCP port')
   }
 
-  return { agentProfileUrl, apiPort: requestedPort }
+  return {
+    agentProfileUrl,
+    apiPort: requestedPort,
+    apiHost: environment.NODE_ENV === 'production' ? PRODUCTION_API_HOST : DEVELOPMENT_API_HOST,
+  }
 }

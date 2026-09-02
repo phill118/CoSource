@@ -2,15 +2,19 @@
   "name": "cosource",
   "private": true,
   "version": "0.0.0",
+  "engines": {
+    "node": ">=22.12.0 <23"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",
     "dev:api": "tsx watch server/http/node-server.ts",
     "typecheck": "tsc -b --pretty false",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && node scripts/verify-browser-bundle.mjs && vite build --config vite.server.config.ts",
     "lint": "eslint .",
     "test": "vitest run",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "start": "node dist-server/node-server.js"
   },
   "dependencies": {
     "react": "^19.2.8",
