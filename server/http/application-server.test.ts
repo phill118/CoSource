@@ -1,7 +1,7 @@
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { request as httpRequest } from 'node:http'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import type { AddressInfo } from 'node:net'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createApplicationServer, type GatewayHandler } from './application-server'
@@ -13,6 +13,7 @@ function fixtureRoot() {
   temporaryRoots.push(root)
   mkdirSync(join(root, 'assets'))
   writeFileSync(join(root, 'index.html'), '<!doctype html><main>CoSource shell</main>')
+  writeFileSync(join(root, 'favicon.svg'), '<svg xmlns="http://www.w3.org/2000/svg"/>')
   writeFileSync(join(root, 'assets', 'app-12345678.js'), 'globalThis.__cosource = true')
   return root
 }
@@ -39,12 +40,12 @@ async function withServer(
   }
 }
 
-async function rawRequest(origin: string, path: string) {
+async function rawRequest(origin: string, path: string, method = 'GET') {
   const { port } = new URL(origin)
   return await new Promise<{ status: number; contentType: string; body: string; nosniff: string }>(
     (resolve, reject) => {
       const request = httpRequest(
-        { host: '127.0.0.1', port, path },
+        { host: '127.0.0.1', port, path, method },
         (response) => {
           const chunks: Buffer[] = []
           response.on('data', (chunk: Buffer) => chunks.push(chunk))
@@ -70,6 +71,12 @@ afterEach(() => {
 })
 
 describe('production application server', () => {
+  it('declares the supplied SVG favicon in the application document', () => {
+    expect(readFileSync(resolve('index.html'), 'utf8')).toContain(
+      '<link rel="icon" type="image/svg+xml" href="/favicon.svg" />',
+    )
+  })
+
   it('fails clearly when the production client build is missing', () => {
     const root = mkdtempSync(join(tmpdir(), 'cosource-runtime-missing-'))
     temporaryRoots.push(root)
@@ -88,8 +95,24 @@ describe('production application server', () => {
       expect(index.status).toBe(200)
       expect(await index.text()).toContain('CoSource shell')
       expect(index.headers.get('cache-control')).toBe('no-store')
-      expect(index.headers.get('content-security-policy')).toContain("default-src 'self'")
+      const csp = index.headers.get('content-security-policy') ?? ''
+      expect(csp).toContain("default-src 'self'")
+      expect(csp).toContain("script-src 'self'")
+      expect(csp).not.toContain("'unsafe-eval'")
+      expect(csp).not.toContain("'unsafe-inline'")
+      expect(csp).not.toMatch(/script-src[^;]*\*/)
       expect(index.headers.get('x-content-type-options')).toBe('nosniff')
+    })
+  })
+
+  it('serves the declared SVG favicon for GET and HEAD', async () => {
+    await withServer(async (origin) => {
+      const get = await rawRequest(origin, '/favicon.svg')
+      expect(get).toMatchObject({ status: 200, contentType: 'image/svg+xml' })
+      expect(get.body).toContain('<svg')
+
+      const head = await rawRequest(origin, '/favicon.svg', 'HEAD')
+      expect(head).toMatchObject({ status: 200, contentType: 'image/svg+xml', body: '' })
     })
   })
 

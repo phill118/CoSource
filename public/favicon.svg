@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">CoSource</title>
+  <rect width="64" height="64" rx="14" fill="#174f47"/>
+  <path d="M44 19a18 18 0 1 0 0 26" fill="none" stroke="#edf6f2" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="44" cy="19" r="5" fill="#b9d6cc"/>
+  <circle cx="44" cy="45" r="5" fill="#b9d6cc"/>
+</svg>
