@@ -61,4 +61,11 @@ describe('workspace journey presentation', () => {
     expect(screen.getByText(/active goal still controls sourcing/i)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Discover products' })).toHaveAttribute('href', '#stage-discover')
   })
+
+  it('positions the purchase surface over the shared engine without changing authority', () => {
+    render(createElement(WorkspaceHeader, { state: base, commitment: 'no_active_goal', webmcp: 'unavailable', toolCount: 0 }))
+    expect(screen.getByRole('link', { name: 'CoSource Purchasing home' })).toBeInTheDocument()
+    expect(screen.getByText('Powered by the CoSource Resource Resolution Engine')).toBeInTheDocument()
+    expect(screen.getByText(/You approve every goal and plan change/)).toBeInTheDocument()
+  })
 })

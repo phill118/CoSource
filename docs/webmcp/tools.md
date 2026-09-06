@@ -6,7 +6,7 @@ CoSource uses the current imperative WebMCP API at `document.modelContext.regist
 
 The thirteen registered tools are:
 
-- `get_purchase_goal`: returns only the current validated goal, or structured unavailability.
+- `get_resource_requirement`: returns the canonical Resource Requirement projected from the current human-committed purchase goal, or structured unavailability. This replaces the purchase-specific read contract; it does not create separately editable requirement state.
 - `get_goal_context`: returns bounded current draft context, separate active-goal context, session identity, and explicit human-authority guidance.
 - `propose_goal_interpretation`: validates and stores a structured, revision-bound interpretation proposal for human review. It cannot adopt, reject, commit, source, or mutate the active goal.
 - `get_purchase_plan`: returns the current plan identity, revisions, stale/status state, and bounded lightweight lines.

@@ -1,6 +1,6 @@
-# Architecture baseline
+# Architecture history and implemented boundaries
 
-This is the north-star separation for future passes, not an implemented system.
+This document records the implemented architecture through the purchasing foundation. The permanent product role and current ownership model are defined in [CoSource Resource Resolution Engine](architecture/resource-resolution-engine.md).
 
 ```text
 Human
@@ -32,8 +32,6 @@ Authorised commerce providers
 8. Multi-merchant output is a purchase plan, not a fake universal checkout.
 9. Payment remains merchant-controlled.
 10. The build remains provider-extensible.
-
-No application services, provider gateway, adapters, WebMCP tools, agent integration, or commerce logic are part of Pass 0.
 
 ## Implemented commerce boundary
 

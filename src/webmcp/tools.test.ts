@@ -7,7 +7,7 @@ function app(){let n=0;const application=createCoSourceApplication({market:{coun
 const execute=async(name:string,input:unknown={})=>createApplicationTools(app()).find(tool=>tool.name===name)!.execute(input) as Promise<{ok:boolean;data?:Record<string,unknown>;error?:{code:string}}>
 describe('application-backed WebMCP tools',()=>{
  it('registers all unique tools atomically',async()=>{const registered:WebMCPToolDefinition[]=[];const application=app(),controller=new AbortController();expect(await registerApplicationTools({registerTool:async tool=>{registered.push(tool)}},application,controller.signal)).toBe(13);expect(new Set(registered.map(tool=>tool.name)).size).toBe(13)})
- it('reads the validated goal',async()=>expect((await execute('get_purchase_goal')).ok).toBe(true))
+ it('reads the projected canonical resource requirement',async()=>expect(await execute('get_resource_requirement')).toMatchObject({ok:true,data:{resource:{type:'product'},approvalPolicy:{fulfillmentAuthority:'recommendation_only'}}}))
  it('reads the live plan',async()=>expect((await execute('get_purchase_plan')).data).toMatchObject({revision:0}))
  it('evaluates the plan through the kernel',async()=>expect((await execute('evaluate_purchase_plan')).ok).toBe(true))
  it('lists retained evidence only after promotion',async()=>{const application=app();await application.searchCandidates({query:'products'});application.retainCandidate(product.identity);const tool=createApplicationTools(application).find(item=>item.name==='list_retained_products')!;expect(await tool.execute({})).toMatchObject({ok:true,data:{products:[{identity:product.identity}]}})})

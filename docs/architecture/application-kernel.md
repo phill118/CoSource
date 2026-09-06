@@ -12,6 +12,8 @@ Human UI → CoSource Application Kernel ← WebMCP
 
 `createCoSourceApplication` is the composition API. `createBrowserApplication` is the browser composition root and explicitly supplies the same-origin catalog client plus the initial `MarketContext`. There is no DI framework and no persistence.
 
+The committed `PurchaseGoal` remains the purchasing surface's sole stored requirement authority. `getActiveResourceRequirement` deterministically projects it into the provider-independent Resource Requirement contract using the same identity and revision. The projection is not stored, independently editable, or separately revisioned.
+
 ## Authoritative owners
 
 - The application session controller owns one stable session identity and monotonic root revision. Its canonical snapshot contains the editable goal draft, reviewable goal-interpretation proposals, human-committed active goal, market context, human and agent discovery workspaces, retained evidence, comparison selection, purchase plan, proposals, and bounded activity. Semantic no-ops do not publish or increment the root revision.
