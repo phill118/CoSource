@@ -14,6 +14,8 @@ Human UI → CoSource Application Kernel ← WebMCP
 
 The committed `PurchaseGoal` remains the purchasing surface's sole stored requirement authority. `getActiveResourceRequirement` deterministically projects it into the provider-independent Resource Requirement contract using the same identity and revision. The projection is not stored, independently editable, or separately revisioned.
 
+The kernel also owns the single bounded, memory-only retained [evidence ledger](evidence-ledger.md), including per-product refresh lifecycle and request authority. `retainedProducts` is only its current projection; discovery candidates never own or refresh retained evidence.
+
 ## Authoritative owners
 
 - The application session controller owns one stable session identity and monotonic root revision. Its canonical snapshot contains the editable goal draft, reviewable goal-interpretation proposals, human-committed active goal, market context, human and agent discovery workspaces, retained evidence, comparison selection, purchase plan, proposals, and bounded activity. Semantic no-ops do not publish or increment the root revision.

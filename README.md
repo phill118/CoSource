@@ -14,6 +14,8 @@ Browser orchestration is owned by a provider-independent application kernel. Rea
 
 Broader resource classes, persistent requirements, monitoring, resolution repair, additional providers, and CORAP integrations are not implemented. CORAP's Presence, Affiliate, Commerce, and Renderer operating systems may later call CoSource through purpose-limited contracts; CoSource is not a fifth OS and is not owned by Commerce OS. Commerce remains authoritative for supplier relationships, purchasing, inventory, and financial consequences. See [Resource Resolution Engine](docs/architecture/resource-resolution-engine.md).
 
+Retained product evidence is held in one bounded, memory-only [canonical evidence ledger](docs/architecture/evidence-ledger.md). It records when CoSource accepted observations, preserves five superseded observations per product, and drives shared freshness, conflict, gap, and qualitative decision-readiness results without inventing confidence scores.
+
 ## Local development
 
 Requires Node.js `>=22.12.0 <23` and npm. A clean install must retain development dependencies because TypeScript, Vite, ESLint, and Vitest are build and validation tools.

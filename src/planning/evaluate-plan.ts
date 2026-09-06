@@ -3,6 +3,9 @@ import type { PurchaseGoal } from '../goals/domain/purchase-goal'
 import { evaluateProductAgainstGoal } from '../evaluation/evaluate-product'
 import { providerIdentityKey, sameProviderIdentity } from '../commerce/domain/provider-identity'
 import type { PlanBudgetEvaluation, PlanEvaluation, PurchasePlan } from './domain/purchase-plan'
+import type { ProductEvidenceEntry } from '../evidence/product-evidence-ledger'
+import { assessEvidenceFreshness } from '../evidence/domain/evidence'
+import type { EvidenceFreshnessPolicy } from '../evidence/domain/evidence'
 
 export function neutralOffer(product: ProductCluster): MerchantOffer | undefined {
   if (product.featuredOfferId) {
@@ -31,7 +34,7 @@ function evaluatePlanBudget(goal: PurchaseGoal, subtotals: Map<string, number>, 
   }
 }
 
-export function evaluatePurchasePlan(goal: PurchaseGoal, plan: PurchasePlan, products: ProductCluster[]): PlanEvaluation {
+export function evaluatePurchasePlan(goal: PurchaseGoal, plan: PurchasePlan, products: ProductCluster[], evidenceEntries:ProductEvidenceEntry[]=[], now=new Date().toISOString(), freshnessPolicy?:EvidenceFreshnessPolicy): PlanEvaluation {
   if (plan.lines.length === 0) return {
     status: 'draft', stale: false, mandatoryFailures: 0, exclusionViolations: 0, mandatoryUnknowns: 0,
     preferencesSatisfied: 0, preferencesUnknown: 0, merchantCount: 0, currencies: [], knownSubtotals: [], unresolvedCosts: [],
@@ -41,18 +44,22 @@ export function evaluatePurchasePlan(goal: PurchaseGoal, plan: PurchasePlan, pro
   let preferencesSatisfied = 0, preferencesUnknown = 0, costEvidenceIncomplete = false
   const merchants = new Set<string>(), currencies = new Set<string>()
   const subtotals = new Map<string, number>(), unresolvedCosts: string[] = []
+  const lineReadiness:Array<{readiness:NonNullable<PlanEvaluation['readiness']>;reasons:string[]}>=[]
   const unresolved = (reason: string) => { costEvidenceIncomplete = true; unresolvedCosts.push(reason) }
   for (const line of plan.lines) {
     const product = byId.get(providerIdentityKey(line.product))
     if (!product) {
       mandatoryUnknowns++
       unresolved(`${line.productTitle}: product evidence is unavailable.`)
+      lineReadiness.push({readiness:'insufficient_evidence',reasons:[`${line.productTitle}: retained product evidence is unavailable.`]})
       continue
     }
     const offer = line.selectedOffer
       ? product.offers.find((candidate) => line.selectedOffer && sameProviderIdentity(candidate.identity, line.selectedOffer))
       : neutralOffer(product)
-    const evaluation = evaluateProductAgainstGoal(goal, product, offer)
+    const entry=evidenceEntries.find(item=>sameProviderIdentity(item.subject,line.product))
+    const evaluation = evaluateProductAgainstGoal(goal, product, offer,{observedAt:entry?.current.observedAt,freshness:entry?assessEvidenceFreshness(entry.current.observedAt,freshnessPolicy,now):freshnessPolicy?'unknown':'not_constrained'})
+    lineReadiness.push({readiness:evaluation.readiness??'insufficient_evidence',reasons:evaluation.readinessReasons??[]})
     mandatoryFailures += evaluation.requirements.filter((result) => result.status === 'failed').length
     if (evaluation.budget?.status === 'failed') mandatoryFailures++
     exclusionViolations += evaluation.exclusions.filter((result) => result.status === 'failed').length
@@ -89,7 +96,13 @@ export function evaluatePurchasePlan(goal: PurchaseGoal, plan: PurchasePlan, pro
   const status = hasKnownConflict ? 'has_known_conflicts'
       : stale || costEvidenceIncomplete || budget?.status === 'unknown' ? 'incomplete'
         : mandatoryUnknowns ? 'has_unverified_requirements' : 'ready_on_known_evidence'
-  return { status, stale, mandatoryFailures, exclusionViolations, mandatoryUnknowns, preferencesSatisfied,
+  const readiness:NonNullable<PlanEvaluation['readiness']>=lineReadiness.some(item=>item.readiness==='blocked_by_known_conflict')?'blocked_by_known_conflict'
+    :mandatoryFailures||exclusionViolations||budget?.status==='failed'?'blocked_by_known_failure'
+      :stale||costEvidenceIncomplete||budget?.status==='unknown'||lineReadiness.some(item=>item.readiness==='insufficient_evidence')?'insufficient_evidence'
+        :lineReadiness.some(item=>item.readiness==='verification_required')?'verification_required':'ready_on_current_evidence'
+  const readinessReasons=[...new Set([...lineReadiness.flatMap(item=>item.reasons),...(stale?['The plan is bound to an earlier goal revision.']:[]),...(costEvidenceIncomplete?['One or more plan costs or offer selections are unresolved.']:[]),...(budget?.status==='failed'?[budget.reason]:[]),...(budget?.status==='unknown'?[budget.reason]:[])])].slice(0,10)
+  const evidenceAwareStatus=evidenceEntries.length&&readiness!=='ready_on_current_evidence'&&status==='ready_on_known_evidence'?'has_unverified_requirements':status
+  return { status:evidenceAwareStatus, stale, mandatoryFailures, exclusionViolations, mandatoryUnknowns, preferencesSatisfied,
     preferencesUnknown, merchantCount: merchants.size, currencies: [...currencies],
-    knownSubtotals: [...subtotals].map(([currency, minorAmount]) => ({ currency, minorAmount })), unresolvedCosts, budget }
+    knownSubtotals: [...subtotals].map(([currency, minorAmount]) => ({ currency, minorAmount })), unresolvedCosts, budget,readiness,readinessReasons }
 }
