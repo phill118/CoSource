@@ -20,6 +20,7 @@ import {applyProposalOperations,approveProposal,createPlanChangeProposal,proposa
 import {compileDiscoveryStrategy} from '../sourcing/compile-discovery-strategy'
 import type {DiscoveryStrategy,EvidenceGap} from '../sourcing/domain/discovery-strategy'
 import {projectPurchaseGoalToResourceRequirement,type ResourceRequirement} from '../requirements'
+import type {DurableWorkspaceState} from './persistence/workspace-persistence'
 
 export interface MarketContext{country:string;currency:string;language?:string}
 export type DiscoveryMode='exploratory_human'|'active_goal_human'|'agent_sourcing'
@@ -51,6 +52,7 @@ export interface CatalogPort{search(input:SearchRequest):Promise<CatalogSearchRe
 
 export interface CoSourceApplication{
  getSnapshot():CoSourceSessionState;subscribe(listener:()=>void):()=>void
+ restoreWorkspace(workspace:DurableWorkspaceState):void
  editGoal(changes:Partial<Omit<PurchaseGoalDraft,'state'|'id'|'revision'>>):void
  addGoalCondition(kind:GoalConditionKind):void;editGoalCondition(kind:GoalConditionKind,id:string,changes:Partial<GoalCondition>):void;removeGoalCondition(kind:GoalConditionKind,id:string):void
  commitGoalDraft():ApplicationResult<PurchaseGoal>;getGoalCommitmentStatus():GoalCommitmentStatus;submitGoalInterpretation(input:unknown):ApplicationResult<GoalInterpretationProposal>;rejectGoalInterpretation(id:string):ApplicationResult<GoalInterpretationProposal>;adoptGoalInterpretation(id:string):ApplicationResult<PurchaseGoalDraft>;getGoalInterpretationStatus(id:string):GoalInterpretationEffectiveStatus|undefined
@@ -105,6 +107,7 @@ export function createCoSourceApplication(dependencies:{catalog:CatalogPort;mark
  const mutatePlan=(next:PurchasePlan)=>{if(next!==state.plan)commit({plan:next})}
  const application:CoSourceApplication={
   getSnapshot:()=>state,subscribe:listener=>{listeners.add(listener);return()=>listeners.delete(listener)},
+  restoreWorkspace:workspaceState=>{evidence=new Map(workspaceState.retainedEvidence.map(entry=>[providerIdentityKey(entry.subject),entry]));refreshAuthority.clear();humanAuthority=0;agentAuthority=0;state={...state,...workspaceState,retainedProducts:productEvidenceValues(evidence),retainedEvidence:productEvidenceEntries(evidence),humanDiscovery:workspace('exploratory_human',workspaceState.market),agentDiscovery:workspace('agent_sourcing',workspaceState.market),evidenceRefresh:{}};listeners.forEach(listener=>listener())},
   editGoal:changes=>{const candidate={...state.goalDraft,...changes};if(goalMeaning(candidate)===goalMeaning(state.goalDraft))return;syncDraft(revisePurchaseGoalDraft(state.goalDraft,changes))},
   addGoalCondition:kind=>{const key=collectionFor[kind];syncDraft(revisePurchaseGoalDraft(state.goalDraft,{[key]:[...state.goalDraft[key],{id:makeId(),operator:'free_text',value:''}]}))},
   editGoalCondition:(kind,id,changes)=>{const key=collectionFor[kind],items=state.goalDraft[key],target=items.find(item=>item.id===id);if(!target||Object.entries(changes).every(([key,value])=>Object.is(target[key as keyof GoalCondition],value)))return;syncDraft(revisePurchaseGoalDraft(state.goalDraft,{[key]:items.map(item=>item.id===id?{...item,...changes}:item)}))},

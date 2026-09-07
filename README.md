@@ -6,7 +6,7 @@ The **CoSource Engine** is a shared, potentially standalone Resource Resolution 
 
 ## Status
 
-This repository currently implements the purchasing surface: a human-authored goal draft, visible agent interpretation proposals, explicit human goal commitment, a canonical Resource Requirement projection, deterministic constraint-driven sourcing, evidence-aware evaluation and comparison, a revisioned cross-merchant purchase plan, and real Shopify Global Catalog discovery through a provider-independent domain and same-origin gateway. Shopify Global Catalog is the only live provider. State is memory-only.
+This repository currently implements the purchasing surface: a human-authored goal draft, visible agent interpretation proposals, explicit human goal commitment, a canonical Resource Requirement projection, deterministic constraint-driven sourcing, evidence-aware evaluation and comparison, a revisioned cross-merchant purchase plan, and real Shopify Global Catalog discovery through a provider-independent domain and same-origin gateway. Shopify Global Catalog is the only live provider. Durable workspace decision state is persisted locally in browser IndexedDB; discovery and execution state remains transient.
 
 Thirteen WebMCP tools provide one bounded agent surface for current intelligence, proposals, real-market search, and evidence gaps. WebMCP does not define the product and is not its only possible future intelligence interface. Agents cannot activate goals or apply plan changes. No tool can create checkout, provide payment, or place a purchase order.
 
@@ -14,7 +14,9 @@ Browser orchestration is owned by a provider-independent application kernel. Rea
 
 Broader resource classes, persistent requirements, monitoring, resolution repair, additional providers, and CORAP integrations are not implemented. CORAP's Presence, Affiliate, Commerce, and Renderer operating systems may later call CoSource through purpose-limited contracts; CoSource is not a fifth OS and is not owned by Commerce OS. Commerce remains authoritative for supplier relationships, purchasing, inventory, and financial consequences. See [Resource Resolution Engine](docs/architecture/resource-resolution-engine.md).
 
-Retained product evidence is held in one bounded, memory-only [canonical evidence ledger](docs/architecture/evidence-ledger.md). It records when CoSource accepted observations, preserves five superseded observations per product, and drives shared freshness, conflict, gap, and qualitative decision-readiness results without inventing confidence scores.
+Retained product evidence is held in one bounded [canonical evidence ledger](docs/architecture/evidence-ledger.md). Its current observations and five-entry histories are part of the local durable workspace; refresh requests and their loading/error authority remain transient. The ledger drives shared freshness, conflict, gap, and qualitative decision-readiness results without inventing confidence scores.
+
+Meaningful workspace decision state survives reload in a strict versioned IndexedDB record through a replaceable application [persistence port](docs/architecture/local-workspace-persistence.md). This is local to the browser profile: there are no accounts, tenant sync, cloud backup, or cross-device guarantees.
 
 ## Local development
 
@@ -44,7 +46,7 @@ The service serves the SPA, `/health`, and the same-origin `/api/catalog/*` gate
 
 `render.yaml` provides a portable Render deployment definition pinned to the supported Node 22 range. Its build command is `npm ci --include=dev && npm run build`; the explicit npm option keeps the required build toolchain available even when the hosting environment sets production mode. Connect the repository, provide `COSOURCE_UCP_AGENT_PROFILE` in the service environment, deploy, and verify `/health` before opening the application. Other Node hosts can use the same clean-install, build, and start commands.
 
-For native WebMCP review, open the deployed HTTPS URL in a secure Chromium environment with WebMCP support. The human interface remains usable when WebMCP is unavailable. Goal, requirement projection, evaluation, comparison, plan, and proposal state is intentionally memory-only and resets when the service or page session ends. CoSource Purchasing does not perform cart, checkout, payment, or purchase execution.
+For native WebMCP review, open the deployed HTTPS URL in a secure Chromium environment with WebMCP support. The human interface remains usable when WebMCP is unavailable. Goal draft and commitment, retained evidence, comparison identities, plan, proposals, bounded activity, market, and workspace identity survive reload through local IndexedDB when storage is healthy. Discovery results, request and refresh lifecycle, React presentation, WebMCP registration, network objects, and promises reset. CoSource Purchasing does not perform cart, checkout, payment, or purchase execution.
 
 WebMCP requires a currently supported secure Chromium testing environment. Unsupported browsers show an unavailable status while the human interface continues normally. See [WebMCP tools](docs/webmcp/tools.md) and [co-activity boundary](docs/webmcp/coactivity.md).
 

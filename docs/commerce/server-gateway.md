@@ -50,4 +50,4 @@ Static responses include a restrictive same-origin content security policy and c
 
 ## Current scope
 
-The gateway provides read-only catalog search, lookup, and product detail. The production server also hosts the existing UI and WebMCP-capable browser application, but it adds no authentication, accounts, persistence, cart, checkout, payment, or purchase execution. Application state remains memory-only.
+The gateway provides read-only catalog search, lookup, and product detail. The production server also hosts the existing UI and WebMCP-capable browser application, but it adds no authentication, accounts, server persistence, cart, checkout, payment, or purchase execution. Durable workspace state is stored only by the browser's local IndexedDB adapter; the server never receives or owns that record.

@@ -22,6 +22,8 @@ The thirteen registered tools are:
 
 Retained-product, inspection, evaluation, comparison, plan-evaluation, and gap results share the kernel's bounded observation summaries, freshness vocabulary, conflict semantics, and qualitative decision readiness. Observation history is summarized rather than exposed as an unrestricted provider-data archive. The registered count remains thirteen; agents cannot refresh evidence, mark it verified, dismiss conflicts, or override freshness.
 
+Browser tool registration waits until local workspace restoration reaches a safe initialized state. Tools therefore read the restored canonical kernel rather than a temporary pre-hydration session. Persistence recovery, record clearing, and conflict resolution are not agent authorities.
+
 Ten intelligence/status tools are read-only. `propose_goal_interpretation` changes interpretation-proposal state only, `propose_plan_changes` changes plan-proposal state only, and `search_products` changes only the bounded agent-candidate workspace. There is deliberately no agent tool for adopting, rejecting, committing, or activating a goal and no `apply_plan_changes` tool. Schemas reject additional properties, URLs, endpoints, raw provider parameters, and arbitrary object patches.
 
 Interpretation input bounds all strings and arrays, validates exact integer money and supported ISO currency through the goal domain, and excludes product/provider evidence, checkout instructions, and plan operations. Returned interpretation data is bounded and marked as validated agent input rather than commerce evidence.

@@ -10,11 +10,13 @@ Human UI → CoSource Application Kernel ← WebMCP
             canonical commerce port
 ```
 
-`createCoSourceApplication` is the composition API. `createBrowserApplication` is the browser composition root and explicitly supplies the same-origin catalog client plus the initial `MarketContext`. There is no DI framework and no persistence.
+`createCoSourceApplication` is the composition API. `createBrowserApplication` is the browser composition root and explicitly supplies the same-origin catalog client, the initial `MarketContext`, and the browser-only IndexedDB adapter behind the application persistence port. There is no DI framework, remote persistence, or second application-state owner.
 
 The committed `PurchaseGoal` remains the purchasing surface's sole stored requirement authority. `getActiveResourceRequirement` deterministically projects it into the provider-independent Resource Requirement contract using the same identity and revision. The projection is not stored, independently editable, or separately revisioned.
 
-The kernel also owns the single bounded, memory-only retained [evidence ledger](evidence-ledger.md), including per-product refresh lifecycle and request authority. `retainedProducts` is only its current projection; discovery candidates never own or refresh retained evidence.
+The kernel also owns the single bounded retained [evidence ledger](evidence-ledger.md). Current evidence and bounded history are included in the durable local projection; per-product refresh lifecycle and request authority remain transient. `retainedProducts` is only its current projection; discovery candidates never own or refresh retained evidence.
+
+Browser reload restores durable decision work through the application-owned [local workspace persistence port](local-workspace-persistence.md). Restoration is atomic and transient execution state is reset; IndexedDB remains below the application boundary and never becomes a second live owner.
 
 ## Authoritative owners
 
@@ -25,7 +27,7 @@ The kernel also owns the single bounded, memory-only retained [evidence ledger](
 - The WebMCP hook owns registration lifecycle only. The application session is the sole owner of activity IDs, timestamps, retention bounds, and consequential sourcing/proposal outcome records.
 - The commerce client is an injected port. Product inspection receives the canonical provider identity and explicit session market; provider and Shopify-specific schemas remain below the application boundary.
 
-The session is intentionally browser-memory-only. UK market values are the initial browser composition default, not hidden constants in search or product inspection. Human and agent sourcing both use the authoritative session market. An agent must declare the matching country/currency rather than silently introducing a second market into one evidence registry; mismatches fail before provider access. Tests inject a US/USD session to prove the complete search-and-inspection boundary.
+The live session remains the one in-memory application authority, while its durable projection is restored from and saved to local browser IndexedDB. UK market values are the initial browser composition default, not hidden constants in search or product inspection. Human and agent sourcing both use the authoritative session market. An agent must declare the matching country/currency rather than silently introducing a second market into one evidence registry; mismatches fail before provider access. Tests inject a US/USD session to prove the complete search-and-inspection boundary.
 
 Goal authority has three distinct states. `PurchaseGoalDraft` is human-editable and may be incomplete. A `GoalInterpretationProposal` is bounded validated agent input tied to the session and exact draft revision; it never changes the draft or active goal. The existing validated `PurchaseGoal` serves as the immutable active snapshot only after explicit human commitment. Adopting an interpretation copies canonical fields into the draft but does not commit it.
 

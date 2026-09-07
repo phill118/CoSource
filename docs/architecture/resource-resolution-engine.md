@@ -8,7 +8,7 @@ CoSource is not a CORAP operating system and is not a subsystem of Commerce OS. 
 
 ## Current implemented slice
 
-CoSource Purchasing is the current standalone surface. Its authoritative human intent is a committed `PurchaseGoal`. The application computes a canonical `ResourceRequirement` from that goal without storing a second editable object or adding a second revision counter. Current resolution covers product discovery, retained commerce evidence, evaluation, comparison, and a human-owned purchase plan. Shopify Global Catalog is the only live provider, and all session state is memory-only.
+CoSource Purchasing is the current standalone surface. Its authoritative human intent is a committed `PurchaseGoal`. The application computes a canonical `ResourceRequirement` from that goal without storing a second editable object or adding a second revision counter. Current resolution covers product discovery, retained commerce evidence, evaluation, comparison, and a human-owned purchase plan. Shopify Global Catalog is the only live provider. Durable decision state is restored from local IndexedDB, while discovery results and execution authority remain transient session state.
 
 WebMCP is one bounded adapter over the same application kernel used by React. It is neither the application owner nor the engine's only future intelligence interface.
 
@@ -36,7 +36,7 @@ WebMCP is one bounded adapter over the same application kernel used by React. It
 
 The canonical requirement uses bounded strings for evolving resource and requester kinds, structured constraints, exact money, and explicit approval policy. This permits future materials, equipment, services, software, licensed assets, suppliers, packaging, replenishment, and replacement requirements without embedding provider schemas or creating an enum for every resource class.
 
-Persistence, monitoring, plan repair, new providers, execution adapters, and CORAP integrations are future seams, not current capabilities. The current exact-money type remains shared from the canonical commerce domain as a temporary compatibility decision; it should move only when a real non-commerce consumer requires a neutral shared value module.
+Remote persistence, monitoring, plan repair, new providers, execution adapters, and CORAP integrations are future seams, not current capabilities. The current exact-money type remains shared from the canonical commerce domain as a temporary compatibility decision; it should move only when a real non-commerce consumer requires a neutral shared value module.
 
 ## Non-goals
 

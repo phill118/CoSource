@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { waitFor } from '@testing-library/react'
+import { screen,waitFor } from '@testing-library/react'
 import '@testing-library/jest-dom/vitest'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
@@ -7,12 +7,14 @@ import { z } from 'zod'
 afterEach(() => {
   document.body.innerHTML = ''
   Reflect.deleteProperty(document, 'modelContext')
+  vi.unstubAllGlobals()
   vi.resetModules()
 })
 
 describe('browser bootstrap', () => {
   it('configures Zod as jitless before rendering and registering application tools', async () => {
     z.config({ jitless: false })
+    vi.stubGlobal('indexedDB',undefined)
     document.body.innerHTML = '<div id="root"></div>'
     const tools = new Map<string, WebMCPToolDefinition>()
     Object.defineProperty(document, 'modelContext', {
@@ -32,8 +34,11 @@ describe('browser bootstrap', () => {
 
     await import('./main.tsx')
 
-    await waitFor(() => expect(document.body).toHaveTextContent('CoSource'))
-    await waitFor(() => expect(tools.size).toBe(13))
+    await waitFor(() => expect(document.body).toHaveTextContent('CoSource'),{timeout:3000})
+    await waitFor(() => expect(tools.size).toBe(13),{timeout:3000})
     expect(z.config().jitless).toBe(true)
+    expect(document.body).toHaveTextContent('Local persistence is unavailable in this browser')
+    expect(screen.queryByRole('button',{name:'Retry local storage'})).not.toBeInTheDocument()
+    expect(document.querySelector('#product-search')).toBeInTheDocument()
   })
 })
