@@ -1,5 +1,7 @@
 # WebMCP tools
 
+Saved-project management is human-only and outside WebMCP. The surface remains exactly thirteen tools: switching aborts the old registration signal and binds a fresh set to the new active application; unresolved restoration exposes zero tools. There is no project listing, creation, rename, switch, migration, recovery, deletion, account, or tenant tool.
+
 Backend B1 makes WebMCP a transport adapter over the canonical application kernel. Tool handlers validate schemas and bound untrusted output, but all sourcing, evidence, evaluation, comparison, plan, and proposal operations delegate to the same live browser-session application used by React.
 
 CoSource uses the current imperative WebMCP API at `document.modelContext.registerTool()`. Each registration supplies `name`, `description`, a strict JSON `inputSchema`, `execute`, accurate annotations, and a shared `AbortSignal`. Aborting that signal unregisters the tools on React teardown. Registration is atomic from CoSource's perspective: if any one of the thirteen registrations fails, the lifecycle owner immediately aborts the shared signal, resets the logical tool count to zero, and reports an error rather than leaving a partial set active. The application feature-detects `document.modelContext`; it does not polyfill WebMCP or imply that an agent is connected.

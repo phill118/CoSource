@@ -1,0 +1,7 @@
+import {z} from 'zod'
+import {PROJECT_DIRECTORY_FORMAT_VERSION,PROJECT_LIMIT,PROJECT_NAME_LIMIT,type ProjectDirectory} from './project-portfolio'
+
+const timestamp=z.iso.datetime({offset:true}),revision=z.number().int().safe().min(0)
+export const projectMetadataSchema=z.object({id:z.string().min(1).max(100),name:z.string().trim().min(1).max(PROJECT_NAME_LIMIT),createdAt:timestamp,updatedAt:timestamp}).strict()
+export const projectDirectorySchema=z.object({formatVersion:z.literal(PROJECT_DIRECTORY_FORMAT_VERSION),directoryRevision:revision,activeProjectId:z.string().min(1).max(100),projects:z.array(projectMetadataSchema).min(1).max(PROJECT_LIMIT)}).strict().superRefine((directory,ctx)=>{const ids=directory.projects.map(project=>project.id);if(new Set(ids).size!==ids.length)ctx.addIssue({code:'custom',message:'Duplicate project identity'});if(!ids.includes(directory.activeProjectId))ctx.addIssue({code:'custom',message:'Active project is missing'});for(const project of directory.projects)if(Date.parse(project.updatedAt)<Date.parse(project.createdAt))ctx.addIssue({code:'custom',message:'Invalid project timestamps'})})
+export function parseProjectDirectory(value:unknown):{ok:true;value:ProjectDirectory}|{ok:false;reason:'corrupt'|'incompatible'}{if(value&&typeof value==='object'&&'formatVersion'in value&&(value as{formatVersion?:unknown}).formatVersion!==PROJECT_DIRECTORY_FORMAT_VERSION)return{ok:false,reason:'incompatible'};const parsed=projectDirectorySchema.safeParse(value);return parsed.success?{ok:true,value:parsed.data}:{ok:false,reason:'corrupt'}}

@@ -10,6 +10,8 @@ This repository currently implements the purchasing surface: a human-authored go
 
 Thirteen WebMCP tools provide one bounded agent surface for current intelligence, proposals, real-market search, and evidence gaps. WebMCP does not define the product and is not its only possible future intelligence interface. Agents cannot activate goals or apply plan changes. No tool can create checkout, provide payment, or place a purchase order.
 
+Up to 50 named purchasing projects can be saved in local browser storage. One application-level portfolio controller owns their strict metadata, active selection, creation, rename, and safe switching; the active application kernel remains the sole owner of all purchasing state. Without IndexedDB, CoSource remains usable as one honestly labelled memory-only workspace.
+
 Browser orchestration is owned by a provider-independent application kernel. React and WebMCP share its sourcing, evidence, evaluation, comparison, planning, and proposal use-cases; neither adapter owns parallel business workflows.
 
 Broader resource classes, persistent requirements, monitoring, resolution repair, additional providers, and CORAP integrations are not implemented. CORAP's Presence, Affiliate, Commerce, and Renderer operating systems may later call CoSource through purpose-limited contracts; CoSource is not a fifth OS and is not owned by Commerce OS. Commerce remains authoritative for supplier relationships, purchasing, inventory, and financial consequences. See [Resource Resolution Engine](docs/architecture/resource-resolution-engine.md).

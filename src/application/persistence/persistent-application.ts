@@ -8,6 +8,7 @@ export interface PersistentApplication{
  subscribePersistence(listener:()=>void):()=>void
  initialize():Promise<void>
  retry():Promise<void>
+ dispose():void
 }
 
 export function createPersistentApplication(application:CoSourceApplication,repository:WorkspacePersistencePort,now=()=>new Date().toISOString()):PersistentApplication{
@@ -25,5 +26,6 @@ export function createPersistentApplication(application:CoSourceApplication,repo
  }
  const initialize=()=>initialization??=loadFromBoundary(currentFingerprint())
  const retry=()=>retryOperation??=(async()=>{try{if(lifecycle.status==='save_error'){disabled=false;const fingerprint=currentFingerprint();if(fingerprint!==lastFingerprint){lastFingerprint=fingerprint;durableRevision++}pending=true;await saveLatest();return}if(lifecycle.status==='unavailable'||lifecycle.status==='recovery_required'){await loadFromBoundary(recoveryFingerprint??currentFingerprint())}}finally{retryOperation=undefined}})()
- return{application,getPersistenceSnapshot:()=>lifecycle,subscribePersistence:listener=>{listeners.add(listener);return()=>listeners.delete(listener)},initialize,retry}
+ const dispose=()=>{disabled=true;pending=false;unsubscribe?.();unsubscribe=undefined;listeners.clear()}
+ return{application,getPersistenceSnapshot:()=>lifecycle,subscribePersistence:listener=>{listeners.add(listener);return()=>listeners.delete(listener)},initialize,retry,dispose}
 }

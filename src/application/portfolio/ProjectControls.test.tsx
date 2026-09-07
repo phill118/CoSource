@@ -1,0 +1,16 @@
+// @vitest-environment jsdom
+import {cleanup,fireEvent,render,screen} from '@testing-library/react'
+import '@testing-library/jest-dom/vitest'
+import {afterEach,describe,expect,it,vi} from 'vitest'
+import type {ProjectPortfolio,PortfolioSnapshot} from './project-portfolio-controller'
+import {ProjectControls} from './ProjectControls'
+
+afterEach(cleanup)
+const metadata=(id:string,name:string)=>({id,name,createdAt:'2026-09-07T00:00:00.000Z',updatedAt:'2026-09-07T00:00:00.000Z'})
+function portfolio(){return{createProject:vi.fn(async()=>({ok:true as const})),renameActiveProject:vi.fn(async()=>({ok:true as const})),switchProject:vi.fn(async()=>({ok:true as const}))} as unknown as ProjectPortfolio}
+describe('project controls',()=>{
+ it('uses labelled native controls for create, rename, and switch',()=>{const owner=portfolio(),snapshot={status:'ready',directory:{formatVersion:1,directoryRevision:1,activeProjectId:'a',projects:[metadata('a','Alpha'),metadata('b','Beta')]}} as PortfolioSnapshot;render(<ProjectControls portfolio={owner} snapshot={snapshot}/>);expect(screen.getByRole('region',{name:'Saved projects'})).toBeInTheDocument();fireEvent.change(screen.getByLabelText('Project'),{target:{value:'b'}});fireEvent.change(screen.getByLabelText('New project name'),{target:{value:'Gamma'}});fireEvent.submit(screen.getByLabelText('New project name').closest('form')!);fireEvent.change(screen.getByLabelText('Rename active project'),{target:{value:'Annual'}});fireEvent.submit(screen.getByLabelText('Rename active project').closest('form')!);expect(owner.switchProject).toHaveBeenCalledWith('b');expect(owner.createProject).toHaveBeenCalledWith('Gamma');expect(owner.renameActiveProject).toHaveBeenCalledWith('Annual')})
+ it('keeps all critical actions in the DOM at mobile viewport size',()=>{Object.defineProperty(window,'innerWidth',{configurable:true,value:390});const owner=portfolio(),snapshot={status:'ready',directory:{formatVersion:1,directoryRevision:0,activeProjectId:'a',projects:[metadata('a','Alpha')]}} as PortfolioSnapshot;render(<ProjectControls portfolio={owner} snapshot={snapshot}/>);expect(screen.getByRole('button',{name:'Create project'})).toBeVisible();expect(screen.getByRole('button',{name:'Rename'})).toBeVisible()})
+ it('shows honest memory-only status without ineffective controls',()=>{render(<ProjectControls portfolio={portfolio()} snapshot={{status:'unavailable',message:'Saved projects require local browser storage.'}}/>);expect(screen.getByText('Memory-only workspace')).toBeInTheDocument();expect(screen.queryByRole('button')).not.toBeInTheDocument()})
+ it('shows canonical settled conflict feedback and disables directory mutations',()=>{const snapshot={status:'conflict',message:'The saved project list changed elsewhere. Reload to reconcile it safely.',directory:{formatVersion:1,directoryRevision:2,activeProjectId:'a',projects:[metadata('a','Alpha')]}} as PortfolioSnapshot;render(<ProjectControls portfolio={portfolio()} snapshot={snapshot}/>);expect(screen.getByRole('alert')).toHaveTextContent('changed elsewhere');expect(screen.getByRole('button',{name:'Create project'})).toBeDisabled();expect(screen.getByRole('button',{name:'Rename'})).toBeDisabled()})
+})

@@ -2,6 +2,8 @@
 
 This document records the implemented architecture through the purchasing foundation. The permanent product role and current ownership model are defined in [CoSource Resource Resolution Engine](architecture/resource-resolution-engine.md).
 
+The browser composition root creates one canonical saved-project portfolio. It owns local project metadata and active-kernel lifetime while each selected `CoSourceApplication` continues to own all purchasing state. Safe switching replaces application identity, so React subscriptions and the existing thirteen WebMCP registrations cleanly rebind.
+
 ```text
 Human
   ↕
