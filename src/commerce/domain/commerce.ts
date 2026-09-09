@@ -2,6 +2,9 @@ export const COMMERCE_PROVIDERS = {
   shopifyGlobalCatalog: 'shopify_global_catalog',
 } as const
 
+import type {Money} from '../../shared/domain/money'
+export type {Money} from '../../shared/domain/money'
+
 export type CommerceProviderId =
   (typeof COMMERCE_PROVIDERS)[keyof typeof COMMERCE_PROVIDERS]
 
@@ -25,12 +28,6 @@ export interface Evidenced<T> {
 export interface ProviderIdentity {
   provider: CommerceProviderId
   id: string
-}
-
-/** Exact integer amount in the provider's ISO 4217 minor units. */
-export interface Money {
-  minorAmount: number
-  currency: string
 }
 
 export interface ExternalMedia {

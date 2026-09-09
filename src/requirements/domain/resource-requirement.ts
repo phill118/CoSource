@@ -1,13 +1,9 @@
 import { z } from 'zod'
+import {moneySchema} from '../../shared/domain/money'
 
 const boundedText = z.string().trim().min(1).max(1_000)
 const shortText = z.string().trim().min(1).max(200)
 const identifier = z.string().trim().min(1).max(100)
-const moneySchema = z.object({
-  minorAmount: z.number().int().safe().min(0),
-  currency: z.string().regex(/^[A-Z]{3}$/),
-}).strict()
-
 const constraintSchema = z.object({
   id: identifier,
   importance: z.enum(['required', 'preferred', 'excluded']),
@@ -33,7 +29,7 @@ const sourcePreferenceSchema = z.object({
 
 export const resourceRequirementSchema = z.object({
   id: identifier,
-  revision: z.number().int().min(0),
+  revision: z.number().int().safe().min(0),
   context: z.object({
     requester: z.object({ kind: shortText, id: identifier.optional() }).strict(),
     workspace: z.object({ kind: shortText, id: identifier.optional() }).strict().optional(),
