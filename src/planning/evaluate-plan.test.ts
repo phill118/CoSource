@@ -17,6 +17,8 @@ const budgetGoal = (minorAmount: number, currency = 'GBP') => createPurchaseGoal
 const line = (item: ProductCluster, changes: Partial<PlanLine> = {}): PlanLine => ({ id: item.identity.id, product: item.identity,
   productTitle: item.title.value, selectedOffer: item.offers[0]?.identity, offerSelection: 'explicit_human', quantity: 1, unitSemantics: 'single_item', ...changes })
 const planFor = (items: PlanLine[]) => revisePurchasePlan(createPurchasePlan('p', 'g', 0), items)
+const completeCoverage={status:'complete' as const,evidence:{strength:'source_explicit' as const,source:'fixture'}}
+const completelyCosted=(item:ProductCluster):ProductCluster=>({...item,offers:item.offers.map(offer=>({...offer,oneTimeCostCoverage:completeCoverage}))})
 
 describe('purchase plan domain', () => {
   it('preserves stable identity, goal revision, unique lines, and revision increments', () => {
@@ -33,6 +35,8 @@ describe('purchase plan domain', () => {
 })
 
 describe('whole-plan budget', () => {
+  it('preserves an unavoidable plan lower bound when only an addition maximum overflows',()=>{const item=completelyCosted(product('bounded','GBP',1,100)),costed={...item,offers:item.offers.map(offer=>({...offer,costComponents:[{id:'delivery',category:'delivery' as const,effect:'addition' as const,basis:'per_line' as const,applicability:'applies' as const,knowledge:{kind:'range' as const,minimum:{minorAmount:50,currency:'GBP'},maximum:{minorAmount:Number.MAX_SAFE_INTEGER,currency:'GBP'}},timing:'one_time' as const,evidence:{strength:'source_explicit' as const,source:'fixture'}}]}))},result=evaluatePurchasePlan(budgetGoal(120),planFor([line(costed)]),[costed]);expect(result).toMatchObject({status:'has_known_conflicts',budget:{status:'failed',comparableSubtotal:{minorAmount:150,currency:'GBP'}},costAssessment:{completeness:'incomplete',currencyTotals:[{baseSubtotal:{minorAmount:100,currency:'GBP'},knownAdditions:{minorAmount:50,currency:'GBP'},knownLowerBound:{minorAmount:150,currency:'GBP'},upperBound:undefined,exactLandedTotal:undefined}]}})})
+  it('costs the actual explicitly selected offer without changing plan revision',()=>{const item=completelyCosted(product('selected','GBP',2,1000)),selected={...item,offers:[item.offers[0]!,{...item.offers[1]!,price:{minorAmount:2500,currency:'GBP'},oneTimeCostCoverage:completeCoverage}]},plan=planFor([line(selected,{selectedOffer:selected.offers[1]!.identity})]),revision=plan.revision,result=evaluatePurchasePlan(budgetGoal(3000),plan,[selected]);expect(result.costAssessment?.currencyTotals[0]?.exactLandedTotal).toEqual({minorAmount:2500,currency:'GBP'});expect(plan.revision).toBe(revision)})
   it('fails when individually affordable products collectively exceed the budget', () => {
     const a = product('a', 'GBP', 1, 20_000), b = product('b', 'GBP', 1, 20_000)
     const result = evaluatePurchasePlan(budgetGoal(30_000), planFor([line(a), line(b)]), [a, b])
@@ -40,7 +44,7 @@ describe('whole-plan budget', () => {
     expect(result.status).toBe('has_known_conflicts')
   })
   it.each([[40_000, 'below'], [39_999, 'equal']])('satisfies a fully costed same-currency subtotal with budget %s (%s)', (budget) => {
-    const a = product('a', 'GBP', 1, 20_000), b = product('b', 'GBP', 1, 19_999)
+    const a = completelyCosted(product('a', 'GBP', 1, 20_000)), b = completelyCosted(product('b', 'GBP', 1, 19_999))
     const result = evaluatePurchasePlan(budgetGoal(budget), planFor([line(a), line(b)]), [a, b])
     expect(result.budget?.status).toBe('satisfied')
     expect(result.status).toBe('ready_on_known_evidence')
@@ -69,15 +73,15 @@ describe('whole-plan budget', () => {
     const a = product('a', 'GBP', 1, amount), b = product('b', 'GBP', 1, 20)
     const result = evaluatePurchasePlan(budgetGoal(Number.MAX_SAFE_INTEGER), planFor([line(a), line(b)]), [a, b])
     expect(result.budget?.status).toBe('unknown')
-    expect(result.knownSubtotals).toEqual([{ currency: 'GBP', minorAmount: amount }])
-    expect(result.unresolvedCosts).toContain('GBP known subtotal: cumulative amount would exceed the safe integer range.')
+    expect(result.knownSubtotals).toEqual([{currency:'GBP',minorAmount:20}])
+    expect(result.unresolvedCosts).toContain('One or more cost components exceed the safe aggregate range and remain unresolved.')
   })
   it('keeps a known budget conflict visible when another line is incomplete', () => {
     const expensive = product('expensive', 'GBP', 1, 40_000), unresolved = product('unresolved', 'GBP', 2)
     const result = evaluatePurchasePlan(budgetGoal(30_000), planFor([line(expensive), line(unresolved, { selectedOffer: undefined, offerSelection: undefined })]), [expensive, unresolved])
-    expect(result.budget?.status).toBe('unknown')
+    expect(result.budget?.status).toBe('failed')
     expect(result.mandatoryFailures).toBe(0)
-    expect(result.status).toBe('incomplete')
+    expect(result.status).toBe('has_known_conflicts')
     expect(result.knownSubtotals).toEqual([{ currency: 'GBP', minorAmount: 40_000 }])
   })
 })

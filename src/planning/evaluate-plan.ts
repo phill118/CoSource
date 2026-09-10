@@ -6,6 +6,9 @@ import type { PlanBudgetEvaluation, PlanEvaluation, PurchasePlan } from './domai
 import type { ProductEvidenceEntry } from '../evidence/product-evidence-ledger'
 import { assessEvidenceFreshness } from '../evidence/domain/evidence'
 import type { EvidenceFreshnessPolicy } from '../evidence/domain/evidence'
+import {assessCosts} from '../costing/assess-cost'
+import {offerCostLine} from '../costing/commerce-cost-adapter'
+import type {CostLineInput} from '../costing/domain/cost'
 
 export function neutralOffer(product: ProductCluster): MerchantOffer | undefined {
   if (product.featuredOfferId) {
@@ -13,25 +16,6 @@ export function neutralOffer(product: ProductCluster): MerchantOffer | undefined
     if (found) return found
   }
   return product.offers.length === 1 ? product.offers[0] : undefined
-}
-
-function evaluatePlanBudget(goal: PurchaseGoal, subtotals: Map<string, number>, costEvidenceIncomplete: boolean): PlanBudgetEvaluation | undefined {
-  if (!goal.budget) return undefined
-  const comparable = subtotals.get(goal.budget.currency)
-  const hasOtherCurrency = [...subtotals.keys()].some((currency) => currency !== goal.budget?.currency)
-  if (costEvidenceIncomplete || hasOtherCurrency) return {
-    status: 'unknown', evidence: { kind: 'unknown' }, goalBudget: goal.budget,
-    comparableSubtotal: comparable === undefined ? undefined : { currency: goal.budget.currency, minorAmount: comparable },
-    reason: 'The plan budget cannot be verified because some item costs, quantities, or currencies are unresolved.',
-  }
-  const subtotal = { currency: goal.budget.currency, minorAmount: comparable ?? 0 }
-  const status = subtotal.minorAmount <= goal.budget.minorAmount ? 'satisfied' : 'failed'
-  return {
-    status, evidence: { kind: 'cosource_derived' }, goalBudget: goal.budget, comparableSubtotal: subtotal,
-    reason: status === 'satisfied'
-      ? `Known item-price subtotal is within the ${goal.budget.currency} budget.`
-      : `Known item-price subtotal exceeds the ${goal.budget.currency} budget.`,
-  }
 }
 
 export function evaluatePurchasePlan(goal: PurchaseGoal, plan: PurchasePlan, products: ProductCluster[], evidenceEntries:ProductEvidenceEntry[]=[], now=new Date().toISOString(), freshnessPolicy?:EvidenceFreshnessPolicy): PlanEvaluation {
@@ -43,14 +27,16 @@ export function evaluatePurchasePlan(goal: PurchaseGoal, plan: PurchasePlan, pro
   let mandatoryFailures = 0, exclusionViolations = 0, mandatoryUnknowns = 0
   let preferencesSatisfied = 0, preferencesUnknown = 0, costEvidenceIncomplete = false
   const merchants = new Set<string>(), currencies = new Set<string>()
-  const subtotals = new Map<string, number>(), unresolvedCosts: string[] = []
+  const unresolvedCosts: string[] = [],costLines:CostLineInput[]=[]
   const lineReadiness:Array<{readiness:NonNullable<PlanEvaluation['readiness']>;reasons:string[]}>=[]
   const unresolved = (reason: string) => { costEvidenceIncomplete = true; unresolvedCosts.push(reason) }
+  const incompleteLine=(lineId:string,reason:string):CostLineInput=>({id:lineId,quantity:1,unitSemantics:'unknown',components:[],coverage:{status:'partial',evidence:{strength:'unknown',source:'plan_evaluation'},reasons:[reason]}})
   for (const line of plan.lines) {
     const product = byId.get(providerIdentityKey(line.product))
     if (!product) {
       mandatoryUnknowns++
       unresolved(`${line.productTitle}: product evidence is unavailable.`)
+      costLines.push(incompleteLine(line.id,`${line.productTitle}: product evidence is unavailable.`))
       lineReadiness.push({readiness:'insufficient_evidence',reasons:[`${line.productTitle}: retained product evidence is unavailable.`]})
       continue
     }
@@ -68,6 +54,7 @@ export function evaluatePurchasePlan(goal: PurchaseGoal, plan: PurchasePlan, pro
     preferencesUnknown += evaluation.preferences.filter((result) => result.status === 'unknown').length
     if (!offer) {
       unresolved(`${line.productTitle}: no merchant offer is selected.`)
+      costLines.push(incompleteLine(line.id,`${line.productTitle}: no merchant offer is selected.`))
       continue
     }
     currencies.add(offer.price.currency)
@@ -75,22 +62,13 @@ export function evaluatePurchasePlan(goal: PurchaseGoal, plan: PurchasePlan, pro
     else if (offer.merchant?.domain) merchants.add(offer.merchant.domain)
     if ((line.quantity ?? 1) > 1 && line.unitSemantics !== 'single_item') {
       unresolved(`${line.productTitle}: quantity semantics are unclear; price multiplication was not performed.`)
-      continue
     }
-    const quantity = line.quantity ?? 1
-    const lineSubtotal = offer.price.minorAmount * quantity
-    if (!Number.isSafeInteger(lineSubtotal)) {
-      unresolved(`${line.productTitle}: line subtotal would exceed the safe integer range.`)
-      continue
-    }
-    const prospectiveAggregate = (subtotals.get(offer.price.currency) ?? 0) + lineSubtotal
-    if (!Number.isSafeInteger(prospectiveAggregate)) {
-      unresolved(`${offer.price.currency} known subtotal: cumulative amount would exceed the safe integer range.`)
-      continue
-    }
-    subtotals.set(offer.price.currency, prospectiveAggregate)
+    try{costLines.push(offerCostLine({id:line.id,quantity:line.quantity??1,unitSemantics:line.unitSemantics},offer))}catch{const reason=`${line.productTitle}: selected offer cost evidence is invalid and requires verification.`;unresolved(reason);costLines.push(incompleteLine(line.id,reason))}
   }
-  const budget = evaluatePlanBudget(goal, subtotals, costEvidenceIncomplete)
+  let costAssessment;try{costAssessment=assessCosts(costLines,goal.budget)}catch(error){const reason=error instanceof Error?error.message:'Cost assessment failed';unresolved(reason);costAssessment=assessCosts(plan.lines.map(line=>incompleteLine(line.id,reason)),goal.budget)}
+  unresolvedCosts.push(...costAssessment.verificationReasons)
+  costEvidenceIncomplete ||= costAssessment.completeness!=='complete_exact'
+  const budget:PlanBudgetEvaluation|undefined=costAssessment.budget&&goal.budget?{status:costAssessment.budget.status,evidence:{kind:costAssessment.budget.status==='unknown'?'unknown':'cosource_derived'},goalBudget:goal.budget,comparableSubtotal:costAssessment.currencyTotals.find(item=>item.currency===goal.budget?.currency)?.knownLowerBound,reason:costAssessment.budget.reason}:undefined
   const stale = plan.goalId !== goal.id || plan.goalRevision !== goal.revision
   const hasKnownConflict = Boolean(mandatoryFailures || exclusionViolations || budget?.status === 'failed')
   const status = hasKnownConflict ? 'has_known_conflicts'
@@ -104,5 +82,5 @@ export function evaluatePurchasePlan(goal: PurchaseGoal, plan: PurchasePlan, pro
   const evidenceAwareStatus=evidenceEntries.length&&readiness!=='ready_on_current_evidence'&&status==='ready_on_known_evidence'?'has_unverified_requirements':status
   return { status:evidenceAwareStatus, stale, mandatoryFailures, exclusionViolations, mandatoryUnknowns, preferencesSatisfied,
     preferencesUnknown, merchantCount: merchants.size, currencies: [...currencies],
-    knownSubtotals: [...subtotals].map(([currency, minorAmount]) => ({ currency, minorAmount })), unresolvedCosts, budget,readiness,readinessReasons }
+    knownSubtotals: costAssessment.currencyTotals.map(item=>item.baseSubtotal), unresolvedCosts:[...new Set(unresolvedCosts)], budget,costAssessment,readiness,readinessReasons }
 }

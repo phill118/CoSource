@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { COMMERCE_PROVIDERS, type ProviderIdentity } from '../domain/commerce'
 import type { CatalogProductResult, CatalogSearchResult } from '../providers/catalog-provider'
+import {costComponentSchema,costCoverageSchema} from '../../costing/domain/cost'
 
 const provenance = z.object({ kind: z.enum(['provider_explicit', 'provider_inferred', 'cosource_derived', 'unknown']), provider: z.literal('shopify_global_catalog').optional(), sourcePath: z.string().optional() })
 const evidencedString = z.object({ value: z.string(), provenance })
@@ -11,10 +12,11 @@ const offer = z.object({
   merchant: z.object({ name: z.string().optional(), domain: z.string().optional(), url: z.string().url().optional(), provenance }).passthrough().optional(),
   productUrl: z.string().url().optional(), handoffUrl: z.string().url().optional(),
   price: z.object({ minorAmount: z.number().int().safe(), currency: z.string().regex(/^[A-Z]{3}$/) }),
+  costComponents:z.array(costComponentSchema).max(50).optional(),oneTimeCostCoverage:costCoverageSchema.optional(),
   availability: z.object({ state: z.enum(['available', 'unavailable', 'unknown']), basis: z.literal('catalog_signal'), provenance }),
   selectedOptions: z.array(selectedOption), media: z.array(media),
   correlations: z.array(z.object({ inputId: z.string(), match: z.enum(['exact', 'featured', 'unknown']) })), provenance,
-}).passthrough()
+}).passthrough().superRefine((value,ctx)=>{if(value.costComponents?.some(component=>component.category==='base_price'))ctx.addIssue({code:'custom',message:'Offer cost components duplicate listing price'})})
 const option = z.object({ name: z.string(), values: z.array(z.object({ value: z.string(), available: z.boolean().optional(), exists: z.boolean().optional() })) })
 const cluster = z.object({
   identity: z.object({ provider: z.literal('shopify_global_catalog'), id: z.string() }), title: evidencedString, description: evidencedString.optional(),

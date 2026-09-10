@@ -1,5 +1,7 @@
 # Purchase plan
 
+The purchase plan separates listing/base-price subtotal from known additions, discounts and the landed-cost lower bound. It shows an exact landed total only when complete one-time evidence proves every applicable mandatory cost. Unknown delivery, tax, duty or fee evidence is never treated as zero, and mixed currencies are never converted without FX evidence. Recurring and usage-based costs remain separate until an explicit horizon exists. Merchant checkout is the final payable-cost verification point.
+
 A `PurchasePlan` is authoritative application state with a stable identifier, a monotonic revision, and the Purchase Goal identifier and revision it references. An empty plan is neutral draft state: placeholder goal binding does not make it stale and no overall-budget outcome is claimed. The first human-added or human-approved agent-proposed line binds it to the current active goal. Plan-line identifiers must be unique. Lines retain canonical product identity, quantity and unit semantics, and an optional selected merchant-offer identity. Multiple offers require an explicit human choice; a sole offer can be used neutrally.
 
 Plan evaluation reuses Pass 6 product evaluation. It reports mandatory failures, exclusion violations, unknown requirements, satisfied preferences, merchant count, currencies, and plan readiness. A changed goal revision marks the plan stale until the user explicitly re-evaluates it.

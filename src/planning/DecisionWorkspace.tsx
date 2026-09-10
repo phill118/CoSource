@@ -20,6 +20,7 @@ export function DecisionWorkspace({ products, evidenceProducts, evidenceEntries,
   goal: PurchaseGoal; products: ProductCluster[]; evidenceProducts: ProductCluster[]; plan:PurchasePlan;planEvaluation:PlanEvaluation;comparison?:ProductComparison;comparisonIds: ProviderIdentity[]; onClearComparison: () => void
   pendingProposal:boolean;evidenceEntries:ProductEvidenceEntry[];evidenceRefresh:Record<string,EvidenceRefreshState>;onAddProduct:(identity:ProviderIdentity)=>void;onRemoveLine:(lineId:string)=>void;onSetQuantity:(lineId:string,quantity:number)=>void;onSelectOffer:(lineId:string,offer?:ProviderIdentity)=>void;onRebase:()=>void;onRefreshEvidence:(identity:ProviderIdentity)=>Promise<ApplicationResult<ProductEvidenceEntry>>
 }) {
+  const componentAmount=(component:NonNullable<PlanEvaluation['costAssessment']>['recurring'][number])=>component.knowledge.kind==='exact'?formatMoney(component.knowledge.amount):component.knowledge.kind==='range'?`${formatMoney(component.knowledge.minimum)}–${formatMoney(component.knowledge.maximum)}`:'amount unresolved'
   const selectedTitles = comparisonIds.map((identity) => products.find((product) => sameProviderIdentity(product.identity, identity))?.title.value ?? identity.id)
   return <section className="decision-workspace" id="stage-compare" aria-labelledby="decision-title">
     <p className="eyebrow">3 · Compare and plan</p><h2 id="decision-title">Human decision workspace</h2>
@@ -62,9 +63,11 @@ export function DecisionWorkspace({ products, evidenceProducts, evidenceEntries,
         </div><button className="remove" onClick={() => onRemoveLine(line.id)}>Remove</button></article>
       })}</div></>}
       <div className="plan-summary"><p>Selected merchants: {planEvaluation.merchantCount}</p><p>Currencies: {planEvaluation.currencies.join(', ') || 'None selected'}</p>
-        <h4>Known item-price subtotals</h4>{planEvaluation.knownSubtotals.length ? planEvaluation.knownSubtotals.map((total) => <strong key={total.currency}>{formatMoney(total)}</strong>) : <p className="muted">No safely calculable subtotal.</p>}
+        <h4>Cost evidence</h4>{planEvaluation.costAssessment&&<p><strong>Cost completeness: {planEvaluation.costAssessment.completeness.replaceAll('_',' ')}</strong></p>}{planEvaluation.costAssessment?.currencyTotals.length ? planEvaluation.costAssessment.currencyTotals.map((total) => <div className="cost-currency" key={total.currency}><strong>Listing/base-price subtotal: {formatMoney(total.baseSubtotal)}</strong><span>Known additions: {formatMoney(total.knownAdditions)}</span><span>Known deductions: {formatMoney(total.knownDeductions)}</span><strong>Conservative landed-cost lower bound: {formatMoney(total.knownLowerBound)}</strong>{total.upperBound&&<span>Supported upper bound: {formatMoney(total.upperBound)}</span>}{total.exactLandedTotal?<strong>Exact landed total: {formatMoney(total.exactLandedTotal)}</strong>:<span className="unresolved">Exact landed total is not proven.</span>}</div>) : <p className="muted">No safely calculable cost evidence.</p>}
+        {planEvaluation.costAssessment?.recurring.length?<div className="unresolved"><strong>Recurring costs (excluded from one-time totals)</strong>{planEvaluation.costAssessment.recurring.map(item=><p key={`${item.evidence.source}:${item.id}`}>{item.label??item.category}: {componentAmount(item)}{item.applicability==='unknown'?' · may apply; applicability unresolved':''}</p>)}</div>:null}
+        {planEvaluation.costAssessment?.unresolved.length?<p className="unresolved">Usage-based, unknown, or otherwise unresolved costs remain outside exact totals.</p>:null}
         {planEvaluation.unresolvedCosts.map((note) => <p className="unresolved" key={note}>{note}</p>)}
-        <p className="muted">Known subtotals exclude shipping and tax and are not final payable totals.</p>
+        <p className="muted">Merchant checkout is the final verification point for delivery, tax, duty, fees, discounts, and the payable amount.</p>
       </div>
       {pendingProposal && <a className="button-link review-route" href="#stage-review">Review pending agent proposal</a>}
     </section>

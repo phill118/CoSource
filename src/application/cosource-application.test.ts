@@ -62,6 +62,25 @@ describe('canonical CoSource application kernel',()=>{
     expect(application.compareCandidates(products[0]!.identity,products[1]!.identity).ok).toBe(true)
   })
 
+  it('bounds aggregate cost overflow for application and WebMCP evaluation',async()=>{
+    const{application,products}=fixture(),candidate=products[0]!,selected=candidate.offers[0]!
+    selected.costComponents=[{id:'fee',category:'mandatory_fee',label:'Mandatory fee',effect:'addition',basis:'per_line',applicability:'applies',knowledge:{kind:'exact',amount:{minorAmount:Number.MAX_SAFE_INTEGER,currency:'USD'}},timing:'one_time',evidence:{strength:'source_explicit',source:'fixture'}}]
+    selected.oneTimeCostCoverage={status:'complete',evidence:{strength:'source_explicit',source:'fixture'}}
+    await application.searchCandidates({query:'generic products'});application.retainCandidate(candidate.identity)
+    const result=application.evaluateCandidate(candidate.identity);expect(result).toMatchObject({ok:true,value:{costAssessment:{completeness:'incomplete'}}})
+    const tool=createApplicationTools(application).find(item=>item.name==='evaluate_product')!,output=await tool.execute({product:candidate.identity})
+    expect(output).toMatchObject({ok:true,data:{costAssessment:{completeness:'incomplete'}}});expect(JSON.stringify(output)).not.toMatch(/stack|safe integer range/i)
+  })
+
+  it('keeps verification-only coverage incomplete in application and WebMCP plan output',async()=>{
+    const{application,products}=fixture(),candidate=products[0]!,selected=candidate.offers[0]!
+    selected.oneTimeCostCoverage={status:'complete',evidence:{strength:'source_inferred',source:'fixture'}}
+    await application.searchCandidates({query:'generic products'});application.retainCandidate(candidate.identity)
+    const state=application.getSnapshot(),proposal=application.createPlanProposal({planId:state.plan.id,planRevision:state.plan.revision,goalId:state.activeGoal!.id,goalRevision:state.activeGoal!.revision,operations:[{type:'add_retained_product',product:candidate.identity}]});expect(proposal.ok).toBe(true);if(!proposal.ok)return;application.approvePlanProposal(proposal.value.id)
+    expect(application.evaluatePurchasePlan()).toMatchObject({ok:true,value:{costAssessment:{completeness:'incomplete'},readiness:'insufficient_evidence'}})
+    const tool=createApplicationTools(application).find(item=>item.name==='evaluate_purchase_plan')!,output=await tool.execute({});expect(output).toMatchObject({ok:true,data:{costAssessment:{completeness:'incomplete'}}});expect(JSON.stringify(output)).not.toMatch(/stack|budget satisfied/i)
+  })
+
   it('owns proposal creation, approval and rejection activities with plan revisions',async()=>{
     const{application,products}=fixture()
     await application.searchCandidates({query:'generic products'})

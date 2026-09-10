@@ -50,7 +50,7 @@ export const resourceRequirementSchema = z.object({
     language: z.string().trim().min(1).max(35).optional(),
     location: boundedText.optional(),
   }).strict().optional(),
-  cost: z.object({ unitCeiling: moneySchema.optional(), totalBudget: moneySchema.optional() }).strict().optional(),
+  cost: z.object({ unitCeiling: moneySchema.optional(), unitCeilingBasis:z.literal('base_listing_unit_price').optional(), totalBudget: moneySchema.optional(),totalBudgetBasis:z.literal('complete_one_time_landed_plan_cost').optional() }).strict().optional(),
   qualityFloor: z.array(z.object({ measure: shortText, minimum: boundedText }).strict()).max(30),
   existingResources: z.array(z.object({ id: identifier, description: boundedText, quantity: z.number().positive().safe().optional() }).strict()).max(100),
   preferredSources: z.array(sourcePreferenceSchema).max(30),

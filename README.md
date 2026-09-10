@@ -12,6 +12,8 @@ Thirteen WebMCP tools provide one bounded agent surface for current intelligence
 
 All discovery now crosses one capability-aware sourcing boundary. Registered sources declare strict factual capabilities; CoSource selects only permitted resource-compatible sources, preserves unsupported intent as explicit gaps, and binds continuation to its source and originating requirement context. The current live source remains the existing Shopify Global Catalog adapter, while deterministic test fixtures prove that the contracts also represent materials, services, software subscriptions, and licensed assets without product-specific kernel branches. See [Universal sourcing](docs/architecture/universal-sourcing.md).
 
+Plan costing now uses one [canonical landed-cost engine](docs/architecture/canonical-costing.md). Listing prices, additions, discounts, unknown categories, currencies, recurring charges and supplier-order scope remain distinct; an overall budget is satisfied only by complete exact same-currency one-time cost evidence.
+
 Up to 50 named purchasing projects can be saved in local browser storage. One application-level portfolio controller owns their strict metadata, active selection, creation, rename, and safe switching; the active application kernel remains the sole owner of all purchasing state. Without IndexedDB, CoSource remains usable as one honestly labelled memory-only workspace.
 
 Browser orchestration is owned by a provider-independent application kernel. React and WebMCP share its sourcing, evidence, evaluation, comparison, planning, and proposal use-cases; neither adapter owns parallel business workflows.

@@ -3,6 +3,7 @@ export const COMMERCE_PROVIDERS = {
 } as const
 
 import type {Money} from '../../shared/domain/money'
+import type {CostComponent,CostCoverage} from '../../costing/domain/cost'
 export type {Money} from '../../shared/domain/money'
 
 export type CommerceProviderId =
@@ -90,6 +91,9 @@ export interface MerchantOffer {
   productUrl?: string
   handoffUrl?: string
   price: Money
+  /** Optional canonical evidence beyond listing price. Absence never means zero or non-applicability. */
+  costComponents?: CostComponent[]
+  oneTimeCostCoverage?: CostCoverage
   availability: CatalogAvailability
   selectedOptions: SelectedOption[]
   condition?: Evidenced<string[]>

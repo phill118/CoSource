@@ -1,6 +1,8 @@
 import type { MerchantOffer, ProvenanceKind, ProductCluster } from '../commerce/domain/commerce'
 import type { GoalCondition, GoalConditionKind, PurchaseGoal } from '../goals/domain/purchase-goal'
 import type { BudgetEvaluation, ConditionEvaluation, EvaluationEvidence, EvaluationProduct, EvaluationStatus, ProductEvaluation } from './domain/product-evaluation'
+import {assessCosts} from '../costing/assess-cost'
+import {offerCostLine} from '../costing/commerce-cost-adapter'
 
 interface ResolvedValue { field: string; value: string; provenance: ProvenanceKind }
 interface ResolvedField { values: ResolvedValue[]; selectableAlternatives?: string[] }
@@ -95,5 +97,7 @@ export function evaluateProductAgainstGoal(goal: PurchaseGoal, product: ProductC
   else if(inferred.length){readiness='verification_required';readinessReasons=['Mandatory evidence is inferred and requires verification.']}
   else if(mandatory.length===0&&!budget){readiness='insufficient_evidence';readinessReasons=['No structured mandatory conditions are available to support a readiness decision.']}
   else{readiness='ready_on_current_evidence';readinessReasons=[observation.freshness==='not_constrained'?'Required conditions are supported; the requirement does not impose a freshness limit.':'Required conditions are supported by current evidence.']}
-  return { goalId: goal.id, goalRevision: goal.revision, productId: product.identity.id, eligibility, requirements, preferences, exclusions, budget, counts, evidence:observation, readiness, readinessReasons:readinessReasons.slice(0,10) }
+  let costAssessment:ProductEvaluation['costAssessment']
+  if(offer)try{costAssessment=assessCosts([offerCostLine({id:product.identity.id,quantity:1,unitSemantics:'single_item'},offer)])}catch{costAssessment=assessCosts([{id:product.identity.id,quantity:1,unitSemantics:'unknown',components:[],coverage:{status:'partial',evidence:{strength:'unknown',source:'product_evaluation'},reasons:['Cost evidence could not be safely aggregated.']}}])}
+  return { goalId: goal.id, goalRevision: goal.revision, productId: product.identity.id, eligibility, requirements, preferences, exclusions, budget, costAssessment, counts, evidence:observation, readiness, readinessReasons:readinessReasons.slice(0,10) }
 }

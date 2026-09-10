@@ -16,7 +16,7 @@ export function projectPurchaseGoalToResourceRequirement(
   context: ProjectionContext,
 ): ResourceRequirement {
   const cost = goal.maximumItemPrice || goal.budget
-    ? { unitCeiling: money(goal.maximumItemPrice), totalBudget: money(goal.budget) }
+    ? { unitCeiling: money(goal.maximumItemPrice),unitCeilingBasis:goal.maximumItemPrice?'base_listing_unit_price' as const:undefined,totalBudget: money(goal.budget),totalBudgetBasis:goal.budget?'complete_one_time_landed_plan_cost' as const:undefined }
     : undefined
   const constraints = [
     ...goal.requirements.map((condition) => ({ ...condition, importance: 'required' as const })),

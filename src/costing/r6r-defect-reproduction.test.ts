@@ -1,0 +1,35 @@
+import {describe,expect,it} from 'vitest'
+import {createPurchaseGoal} from '../goals/domain/purchase-goal'
+import {createPurchasePlan,revisePurchasePlan,type PlanLine} from '../planning/domain/purchase-plan'
+import {evaluatePurchasePlan} from '../planning/evaluate-plan'
+import type {MerchantOffer,ProductCluster} from '../commerce/domain/commerce'
+import {assessCosts} from './assess-cost'
+import {offerCostLine} from './commerce-cost-adapter'
+import type {CostComponent,CostLineInput} from './domain/cost'
+
+const provider='shopify_global_catalog' as const
+const provenance={kind:'provider_explicit' as const,provider}
+const evidence={strength:'source_explicit' as const,source:'fixture'}
+const money=(minorAmount:number,currency='GBP')=>({minorAmount,currency})
+const coverage={status:'complete' as const,evidence}
+const component=(id:string,minorAmount:number,changes:Partial<CostComponent>={}):CostComponent=>({id,category:'base_price',effect:'addition',basis:'per_line',applicability:'applies',knowledge:{kind:'exact',amount:money(minorAmount)},timing:'one_time',evidence,...changes})
+const costLine=(components:CostComponent[],changes:Partial<CostLineInput>={}):CostLineInput=>({id:'line',quantity:1,unitSemantics:'single_unit',components,coverage,...changes})
+const offer=(id:string,minorAmount=1000):MerchantOffer=>({identity:{provider,id},title:{value:id,provenance},price:money(minorAmount),oneTimeCostCoverage:coverage,availability:{state:'available',basis:'catalog_signal',provenance},selectedOptions:[],media:[],correlations:[],provenance})
+const product=(id:string,offers=[offer(`${id}-offer`)]):ProductCluster=>({identity:{provider,id},title:{value:id,provenance},offers,media:[],offerCompleteness:'provider_returned_unknown',provenance})
+const planLine=(item:ProductCluster,changes:Partial<PlanLine>={}):PlanLine=>({id:`line-${item.identity.id}`,product:item.identity,productTitle:item.title.value,selectedOffer:item.offers[0]?.identity,offerSelection:'explicit_human',quantity:1,unitSemantics:'single_item',...changes})
+const goal=createPurchaseGoal({id:'goal',summary:'buy',budget:money(5000),requirements:[],preferences:[],exclusions:[]})
+const plan=(lines:PlanLine[])=>revisePurchasePlan(createPurchasePlan('plan',goal.id,goal.revision),lines)
+
+describe('R6R defect reproduction',()=>{
+ it('keeps a missing-product line in incomplete cost and budget truth',()=>{const known=product('known'),missing=product('missing');const result=evaluatePurchasePlan(goal,plan([planLine(known),planLine(missing)]),[known]);expect(result.costAssessment?.completeness).toBe('incomplete');expect(result.budget?.status).toBe('unknown')})
+ it('keeps a missing selected offer and unclear quantity incomplete',()=>{const item=product('item',[offer('a'),offer('b')]);const missing=evaluatePurchasePlan(goal,plan([planLine(item,{selectedOffer:undefined,offerSelection:undefined})]),[item]);expect(missing.costAssessment?.completeness).toBe('incomplete');expect(missing.budget?.status).toBe('unknown');const unclear=evaluatePurchasePlan(goal,plan([planLine(product('quantity'),{quantity:2,unitSemantics:'unknown'})]),[product('quantity')]);expect(unclear.costAssessment?.completeness).toBe('incomplete');expect(unclear.budget?.status).toBe('unknown')})
+ it('fails a partial plan only when its unavoidable lower bound is over budget',()=>{const expensive=product('expensive',[offer('expensive-offer',6000)]),missing=product('missing');const result=evaluatePurchasePlan(goal,plan([planLine(expensive),planLine(missing)]),[expensive]);expect(result.costAssessment?.completeness).toBe('incomplete');expect(result.budget?.status).toBe('failed')})
+ it.each(['applies','unknown'] as const)('does not fail budget from a %s unknown discount',applicability=>{const result=assessCosts([costLine([component('base',6000),component('discount',0,{category:'discount',effect:'deduction',applicability,knowledge:{kind:'unknown',currency:'GBP'}})])],money(5000));expect(result.currencyTotals[0]?.knownLowerBound).toEqual(money(0));expect(result.budget?.status).toBe('unknown')})
+ it('is deeply deterministic for conflicting order claims',()=>{const a=costLine([component('delivery',50,{category:'delivery',basis:'per_order',orderScope:'supplier'})],{id:'a'}),b=costLine([component('delivery',60,{category:'delivery',basis:'per_order',orderScope:'supplier'})],{id:'b'});expect(assessCosts([a,b])).toEqual(assessCosts([b,a]))})
+ it('computes conservative exact and ranged deduction bounds',()=>{const exact=assessCosts([costLine([component('base',100),component('discount',20,{category:'discount',effect:'deduction'})])]);expect(exact.currencyTotals[0]).toMatchObject({knownLowerBound:money(80),upperBound:money(80),exactLandedTotal:money(80)});const ranged=assessCosts([costLine([component('base',100),component('discount',0,{category:'discount',effect:'deduction',knowledge:{kind:'range',minimum:money(10),maximum:money(30)}})])]);expect(ranged.currencyTotals[0]).toMatchObject({knownLowerBound:money(70),upperBound:money(90),exactLandedTotal:undefined})})
+ it('counts identical per-plan claims once',()=>{const fee=component('fee',50,{category:'mandatory_fee',basis:'per_plan'});expect(assessCosts([costLine([fee],{id:'a'}),costLine([fee],{id:'b'})]).currencyTotals[0]?.exactLandedTotal).toEqual(money(50))})
+ it('makes conflicting per-plan claims deterministic',()=>{const a=costLine([component('fee',50,{category:'mandatory_fee',basis:'per_plan'})],{id:'a'}),b=costLine([component('fee',60,{category:'mandatory_fee',basis:'per_plan'})],{id:'b'});expect(assessCosts([a,b])).toEqual(assessCosts([b,a]));expect(assessCosts([a,b]).completeness).toBe('conflicting')})
+ it('does not collide equal local order scopes from different sources',()=>{const a=component('delivery',50,{category:'delivery',basis:'per_order',orderScope:'local',evidence:{...evidence,source:'a'}}),b=component('delivery',60,{category:'delivery',basis:'per_order',orderScope:'local',evidence:{...evidence,source:'b'}});expect(assessCosts([costLine([a,b])]).currencyTotals[0]?.exactLandedTotal).toEqual(money(110))})
+ it('reports only explicit unresolved coverage without retail assumptions',()=>{const delivery=component('delivery',50,{category:'delivery'}),result=assessCosts([costLine([delivery],{coverage:{status:'partial',evidence,reasons:['Tax applicability unresolved'],unresolvedCategories:['tax']}})]);expect(result.missingCategories).toEqual(['tax']);expect(result.missingCategories).not.toContain('delivery');const service=assessCosts([costLine([component('service',100)],{coverage:{status:'partial',evidence,reasons:['Service scope requires confirmation']}})]);expect(service.missingCategories).toEqual([])})
+ it('rejects duplicate listing price and an unlabelled other cost',()=>{expect(()=>offerCostLine({id:'line',quantity:1,unitSemantics:'single_item'},{...offer('offer'),costComponents:[component('duplicate',100)]})).toThrow(/base/i);expect(()=>assessCosts([costLine([component('other',10,{category:'other',label:undefined})])])).toThrow(/label/i)})
+})

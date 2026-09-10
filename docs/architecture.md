@@ -4,6 +4,8 @@ This document records the implemented architecture through the purchasing founda
 
 R5 adds the [universal sourcing spine](architecture/universal-sourcing.md): canonical requirements are capability-negotiated into bounded source legs before provider access. The existing catalogue is an adapter to that spine, not a privileged workflow owner.
 
+R6 adds the [canonical cost engine](architecture/canonical-costing.md): selected-offer listing evidence is adapted into provider-neutral components, while landed-cost completeness, supplier-order aggregation and budget comparison remain application-owned and evidence-aware.
+
 The browser composition root creates one canonical saved-project portfolio. It owns local project metadata and active-kernel lifetime while each selected `CoSourceApplication` continues to own all purchasing state. Safe switching replaces application identity, so React subscriptions and the existing thirteen WebMCP registrations cleanly rebind.
 
 ```text
