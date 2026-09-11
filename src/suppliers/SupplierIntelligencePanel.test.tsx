@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest'
-import {cleanup,render,screen,within} from '@testing-library/react'
+import {cleanup,fireEvent,render,screen,within} from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import {afterEach,describe,expect,it} from 'vitest'
 import {createCoSourceApplication} from '../application/cosource-application'
@@ -45,16 +45,16 @@ describe('SupplierIntelligencePanel',()=>{
  it('resets every supplier and merchant presentation draft across workspace identity',async()=>{
   const application=await setup(),base=application.getSnapshot(),supplier=base.suppliers[0]!,secondSupplier={...supplier,id:'second-supplier',name:'Second supplier',merchantLinks:[],quotations:[],contacts:[],reliability:[],risks:[]},firstState={...base,suppliers:[supplier,secondSupplier]},view=render(<SupplierIntelligencePanel application={application} state={firstState}/>)
   await userEvent.click(screen.getByText('Merchant a',{selector:'strong'}))
-  await userEvent.clear(screen.getAllByLabelText('Supplier name')[0]!);await userEvent.type(screen.getAllByLabelText('Supplier name')[0]!,'Draft rename')
-  await userEvent.type(screen.getAllByLabelText('Received quote amount')[0]!,'12.34')
-  await userEvent.clear(screen.getAllByLabelText('Currency')[0]!);await userEvent.type(screen.getAllByLabelText('Currency')[0]!,'USD')
-  await userEvent.type(screen.getAllByLabelText('Contact subject')[0]!,'Draft contact')
-  await userEvent.type(screen.getAllByLabelText('Short summary')[0]!,'Draft summary')
-  await userEvent.selectOptions(screen.getAllByLabelText('Outcome')[0]!,'negative')
-  await userEvent.type(screen.getAllByLabelText('Valid until')[1]!,'2026-02-01T10:00')
-  await userEvent.type(screen.getAllByLabelText('Reason')[0]!,'Draft risk')
-  await userEvent.type(screen.getAllByLabelText('Review due')[0]!,'2026-02-02T10:00')
-  await userEvent.selectOptions(screen.getByLabelText('Link merchant-b to supplier'),'second-supplier')
+  fireEvent.change(screen.getAllByLabelText('Supplier name')[0]!,{target:{value:'Draft rename'}})
+  fireEvent.change(screen.getAllByLabelText('Received quote amount')[0]!,{target:{value:'12.34'}})
+  fireEvent.change(screen.getAllByLabelText('Currency')[0]!,{target:{value:'USD'}})
+  fireEvent.change(screen.getAllByLabelText('Contact subject')[0]!,{target:{value:'Draft contact'}})
+  fireEvent.change(screen.getAllByLabelText('Short summary')[0]!,{target:{value:'Draft summary'}})
+  fireEvent.change(screen.getAllByLabelText('Outcome')[0]!,{target:{value:'negative'}})
+  fireEvent.change(screen.getAllByLabelText('Valid until')[1]!,{target:{value:'2026-02-01T10:00'}})
+  fireEvent.change(screen.getAllByLabelText('Reason')[0]!,{target:{value:'Draft risk'}})
+  fireEvent.change(screen.getAllByLabelText('Review due')[0]!,{target:{value:'2026-02-02T10:00'}})
+  fireEvent.change(screen.getByLabelText('Link merchant-b to supplier'),{target:{value:'second-supplier'}})
   const switched={...firstState,id:'other-workspace',suppliers:[{...supplier,name:'Other project supplier'},secondSupplier]}
   view.rerender(<SupplierIntelligencePanel application={application} state={switched}/>)
   await userEvent.click(screen.getByText('Other project supplier',{selector:'strong'}))

@@ -1,5 +1,6 @@
 import type { MerchantOffer, ProductCluster } from '../commerce/domain/commerce'
 import type { PurchaseGoal } from '../goals/domain/purchase-goal'
+import type {HumanEvaluationDecision} from '../evaluation/domain/product-evaluation'
 import { evaluateProductAgainstGoal } from '../evaluation/evaluate-product'
 import { providerIdentityKey, sameProviderIdentity } from '../commerce/domain/provider-identity'
 import type { PlanBudgetEvaluation, PlanEvaluation, PurchasePlan } from './domain/purchase-plan'
@@ -20,7 +21,7 @@ export function neutralOffer(product: ProductCluster): MerchantOffer | undefined
   return product.offers.length === 1 ? product.offers[0] : undefined
 }
 
-export function evaluatePurchasePlan(goal: PurchaseGoal, plan: PurchasePlan, products: ProductCluster[], evidenceEntries:ProductEvidenceEntry[]=[], now=new Date().toISOString(), freshnessPolicy?:EvidenceFreshnessPolicy,supplierForOffer?:(offer:MerchantOffer)=>SupplierAssessment|undefined): PlanEvaluation {
+export function evaluatePurchasePlan(goal: PurchaseGoal, plan: PurchasePlan, products: ProductCluster[], evidenceEntries:ProductEvidenceEntry[]=[], now=new Date().toISOString(), freshnessPolicy?:EvidenceFreshnessPolicy,supplierForOffer?:(offer:MerchantOffer)=>SupplierAssessment|undefined,humanDecisionsFor?:(product:ProductCluster)=>HumanEvaluationDecision[]): PlanEvaluation {
   if (plan.lines.length === 0) return {
     status: 'draft', stale: false, mandatoryFailures: 0, exclusionViolations: 0, mandatoryUnknowns: 0,
     preferencesSatisfied: 0, preferencesUnknown: 0, merchantCount: 0, currencies: [], knownSubtotals: [], unresolvedCosts: [],
@@ -47,7 +48,7 @@ export function evaluatePurchasePlan(goal: PurchaseGoal, plan: PurchasePlan, pro
       ? product.offers.find((candidate) => line.selectedOffer && sameProviderIdentity(candidate.identity, line.selectedOffer))
       : neutralOffer(product)
     const entry=evidenceEntries.find(item=>sameProviderIdentity(item.subject,line.product))
-    const evaluation = evaluateProductAgainstGoal(goal, product, offer,{observedAt:entry?.current.observedAt,freshness:entry?assessEvidenceFreshness(entry.current.observedAt,freshnessPolicy,now):freshnessPolicy?'unknown':'not_constrained'})
+    const evaluation = evaluateProductAgainstGoal(goal, product, offer,{observedAt:entry?.current.observedAt,freshness:entry?assessEvidenceFreshness(entry.current.observedAt,freshnessPolicy,now):freshnessPolicy?'unknown':'not_constrained'},humanDecisionsFor?.(product)??[])
     lineReadiness.push({readiness:evaluation.readiness??'insufficient_evidence',reasons:evaluation.readinessReasons??[]})
     mandatoryFailures += evaluation.requirements.filter((result) => result.status === 'failed').length
     if (evaluation.budget?.status === 'failed') mandatoryFailures++

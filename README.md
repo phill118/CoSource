@@ -66,3 +66,7 @@ Licensed under the [MIT License](LICENSE).
 ## Supplier intelligence
 
 Supplier relationships are retained as provider-neutral, project-local evidence. See [canonical supplier intelligence](docs/architecture/supplier-intelligence.md) for identity, quotation, reliability, risk, and readiness rules.
+
+## Evidence resolution
+
+Missing, stale, conflicting, verification-required, and unresolved-cost evidence is projected through one [canonical evidence-resolution model](docs/architecture/evidence-resolution.md). Human verification is explicit, project-scoped evidence and never rewrites provider observations.

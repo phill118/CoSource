@@ -83,3 +83,7 @@ Backend B1 consolidates browser orchestration under `src/application`. The appli
 ## Supplier intelligence
 
 Supplier intelligence is a kernel-owned durable domain. Canonical suppliers are separate from provider merchant identities and are connected only through explicit exact links; see [supplier intelligence](architecture/supplier-intelligence.md).
+
+## Evidence resolution
+
+R8 projects the existing ledger, evaluators, cost engine, and supplier intelligence into deterministic actionable issues. Human verification remains separate durable evidence under kernel authority; see [evidence resolution](architecture/evidence-resolution.md).

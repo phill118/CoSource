@@ -1,8 +1,7 @@
-import type { ProvenanceKind } from '../commerce/domain/commerce'
 import type { ConditionEvaluation, EvaluationStatus, ProductEvaluation } from './domain/product-evaluation'
 import './ProductEvaluationPanel.css'
 
-const evidenceLabels: Record<ProvenanceKind,string> = { provider_explicit:'Provided', provider_inferred:'Inferred', cosource_derived:'Derived', unknown:'Unknown' }
+const evidenceLabels: Record<ConditionEvaluation['evidence']['kind'],string> = { provider_explicit:'Provided', provider_inferred:'Inferred', cosource_derived:'Derived', human_verified:'Human verified', unknown:'Unknown' }
 const statusLabels: Record<EvaluationStatus,string> = { satisfied:'Satisfied', failed:'Failed', unknown:'Unknown' }
 const statusMarks: Record<EvaluationStatus,string> = { satisfied:'✓', failed:'✕', unknown:'?' }
 const eligibilityLabels = { eligible:'Eligible', eligible_with_unknowns:'Eligible — some mandatory conditions unverified', ineligible:'Not eligible' }

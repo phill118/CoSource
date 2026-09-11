@@ -1,6 +1,6 @@
 import type { MerchantOffer, ProvenanceKind, ProductCluster } from '../commerce/domain/commerce'
 import type { GoalCondition, GoalConditionKind, PurchaseGoal } from '../goals/domain/purchase-goal'
-import type { BudgetEvaluation, ConditionEvaluation, EvaluationEvidence, EvaluationProduct, EvaluationStatus, ProductEvaluation } from './domain/product-evaluation'
+import type { BudgetEvaluation, ConditionEvaluation, EvaluationClaim, EvaluationEvidence, EvaluationProduct, EvaluationStatus, HumanEvaluationDecision, ProductEvaluation } from './domain/product-evaluation'
 import {assessCosts} from '../costing/assess-cost'
 import {offerCostLine} from '../costing/commerce-cost-adapter'
 
@@ -8,6 +8,8 @@ interface ResolvedValue { field: string; value: string; provenance: ProvenanceKi
 interface ResolvedField { values: ResolvedValue[]; selectableAlternatives?: string[] }
 const normalise = (value: string) => value.trim().toLocaleLowerCase('en-US')
 const evidencePriority: Record<ProvenanceKind, number> = { provider_explicit: 4, cosource_derived: 3, provider_inferred: 2, unknown: 1 }
+const claimId=(value:ResolvedValue)=>`claim:${encodeURIComponent(value.field.trim().toLocaleLowerCase('en-US'))}:${value.provenance}:${encodeURIComponent(value.value.trim())}`
+const claims=(values:ResolvedValue[]):EvaluationClaim[]=>[...new Map(values.map(value=>[claimId(value),{id:claimId(value),field:value.field,value:value.value,provenance:value.provenance}])).values()].sort((a,b)=>a.id.localeCompare(b.id))
 
 function strongest<T extends { value: ResolvedValue }>(entries: T[]): T[] {
   const priority = Math.max(...entries.map((entry) => evidencePriority[entry.value.provenance]))
@@ -16,7 +18,7 @@ function strongest<T extends { value: ResolvedValue }>(entries: T[]): T[] {
 
 function conflict(condition: GoalCondition, kind: GoalConditionKind, values: ResolvedValue[]): ConditionEvaluation {
   const observed = values[0]!
-  return {...unknown(condition, kind, `Equally strong evidence for "${observed.field}" conflicts in the current observation, so no unique result can be established.`, { kind: observed.provenance, field: observed.field, value: values.map((value) => value.value).join(' / ') }),issue:'conflict'}
+  return {...unknown(condition, kind, `Equally strong evidence for "${observed.field}" conflicts in the current observation, so no unique result can be established.`, { kind: observed.provenance, field: observed.field }),issue:'conflict',claims:claims(values)}
 }
 
 function resolveField(product: EvaluationProduct, field: string, offer?: MerchantOffer): ResolvedField {
@@ -31,8 +33,8 @@ function resolveField(product: EvaluationProduct, field: string, offer?: Merchan
 
 const unknown = (condition: GoalCondition, kind: GoalConditionKind, reason: string, evidence: EvaluationEvidence = { kind: 'unknown' }): ConditionEvaluation => ({ conditionId: condition.id, kind, condition, status: 'unknown', evidence, reason,issue:'missing' })
 function result(condition: GoalCondition, kind: GoalConditionKind, status: EvaluationStatus, value: ResolvedValue, reason: string): ConditionEvaluation {
-  if (value.provenance !== 'provider_explicit' && value.provenance !== 'cosource_derived') return {...unknown(condition, kind, `Only inferred evidence was returned for "${value.field}"; verification is required.`, { kind: value.provenance, field: value.field, value: value.value }),issue:'inferred'}
-  return { conditionId: condition.id, kind, condition, status, evidence: { kind: value.provenance, field: value.field, value: value.value }, reason }
+  if (value.provenance !== 'provider_explicit' && value.provenance !== 'cosource_derived') return {...unknown(condition, kind, `Only inferred evidence was returned for "${value.field}"; verification is required.`, { kind: value.provenance, field: value.field, value: value.value }),issue:'inferred',claims:claims([value])}
+  return { conditionId: condition.id, kind, condition, status, evidence: { kind: value.provenance, field: value.field, value: value.value }, reason,claims:claims([value]) }
 }
 
 function parseBoolean(value: string): boolean | undefined { const text = normalise(value); if (text === 'true' || text === 'yes') return true; if (text === 'false' || text === 'no') return false; return undefined }
@@ -42,7 +44,7 @@ function parseNumber(value: string): { number: number; unit?: string } | undefin
   const number = Number(match[1]); return Number.isFinite(number) ? { number, unit: match[2] ? normalise(match[2]) : undefined } : undefined
 }
 
-function evaluateCondition(condition: GoalCondition, kind: GoalConditionKind, product: EvaluationProduct, offer?: MerchantOffer): ConditionEvaluation {
+export function evaluateProductCondition(condition: GoalCondition, kind: GoalConditionKind, product: EvaluationProduct, offer?: MerchantOffer): ConditionEvaluation {
   if (condition.operator === 'free_text') return unknown(condition, kind, 'Free-text intent has no structured field and is not interpreted automatically.')
   const resolved = resolveField(product, condition.field ?? '', offer); const values = resolved.values
   if (!values.length) return {...unknown(condition, kind, resolved.selectableAlternatives?.length ? `Selectable alternatives for "${condition.field}" were returned, but no applicable option is selected.` : `No structured evidence for "${condition.field}" was returned.`),issue:'missing'}
@@ -73,6 +75,19 @@ function evaluateCondition(condition: GoalCondition, kind: GoalConditionKind, pr
   return result(condition, kind, status, compatible.value, `Provided field "${compatible.value.field}" is "${compatible.value.value}" and was compared without unit conversion.${kind === 'exclusion' && meets ? ' The exclusion is violated.' : ''}`)
 }
 
+function projectedClaim(condition:GoalCondition,kind:GoalConditionKind,value:string,provenance:ProvenanceKind):ConditionEvaluation{
+ if(condition.operator==='free_text')return unknown(condition,kind,'Free-text intent cannot be satisfied by an arbitrary human-entered value.')
+ return evaluateProductCondition(condition,kind,{attributes:{value:[{name:condition.field??'',value}],provenance:{kind:provenance}}} as EvaluationProduct)
+}
+function applyHumanDecisions(item:ConditionEvaluation,decisions:HumanEvaluationDecision[]):ConditionEvaluation{
+ const applicable=decisions.filter(decision=>decision.conditionId===item.conditionId&&decision.outcome!=='requires_verification')
+ if(!applicable.length)return item
+ const rejected=new Set(applicable.filter(decision=>decision.outcome==='rejected').map(decision=>decision.claimReference)),remaining=(item.claims??[]).filter(claim=>!rejected.has(claim.id)),selected=[...applicable].reverse().find(decision=>decision.outcome==='recorded'||decision.outcome==='confirmed'&&remaining.some(claim=>claim.id===decision.claimReference))
+ if(selected){const value=selected.outcome==='recorded'?selected.value:remaining.find(claim=>claim.id===selected.claimReference)?.value;if(value===undefined)return item;const evaluated=projectedClaim(item.condition,item.kind,value,'cosource_derived');return{...evaluated,evidence:{...evaluated.evidence,kind:'human_verified',source:selected.verificationId,value},claims:item.claims,reason:`Human verification ${selected.verificationId} recorded "${value}". ${evaluated.reason}`}}
+ if(rejected.size){if(!remaining.length)return{...unknown(item.condition,item.kind,'All current claims were explicitly rejected; replacement evidence is required.'),claims:item.claims};if(remaining.length===1){const claim=remaining[0]!,evaluated=projectedClaim(item.condition,item.kind,claim.value,claim.provenance);return{...evaluated,claims:item.claims,reason:`A rejected claim was excluded. ${evaluated.reason}`}}}
+ return item
+}
+
 function evaluateBudget(goal: PurchaseGoal, offer?: MerchantOffer): BudgetEvaluation | undefined {
   if (!goal.maximumItemPrice) return undefined
   if (!offer) return { status: 'unknown', evidence: { kind: 'unknown' }, reason: 'No single merchant offer was selected for item-price budget evaluation.',issue:'missing' }
@@ -81,10 +96,10 @@ function evaluateBudget(goal: PurchaseGoal, offer?: MerchantOffer): BudgetEvalua
   return { status, evidence: { kind: 'cosource_derived', value: String(offer.price.minorAmount) }, itemPrice: offer.price, reason: `Same-currency item price was compared with the maximum item price. This excludes shipping and tax and is not a final total.` }
 }
 
-export function evaluateProductAgainstGoal(goal: PurchaseGoal, product: ProductCluster, offer?: MerchantOffer, observation:{observedAt?:string;freshness:'current'|'stale'|'unknown'|'not_constrained'}={freshness:'not_constrained'}): ProductEvaluation {
-  const requirements = goal.requirements.map((condition) => evaluateCondition(condition, 'requirement', product, offer))
-  const preferences = goal.preferences.map((condition) => evaluateCondition(condition, 'preference', product, offer))
-  const exclusions = goal.exclusions.map((condition) => evaluateCondition(condition, 'exclusion', product, offer))
+export function evaluateProductAgainstGoal(goal: PurchaseGoal, product: ProductCluster, offer?: MerchantOffer, observation:{observedAt?:string;freshness:'current'|'stale'|'unknown'|'not_constrained'}={freshness:'not_constrained'},humanDecisions:HumanEvaluationDecision[]=[]): ProductEvaluation {
+  const requirements = goal.requirements.map((condition) => applyHumanDecisions(evaluateProductCondition(condition, 'requirement', product, offer),humanDecisions))
+  const preferences = goal.preferences.map((condition) => applyHumanDecisions(evaluateProductCondition(condition, 'preference', product, offer),humanDecisions))
+  const exclusions = goal.exclusions.map((condition) => applyHumanDecisions(evaluateProductCondition(condition, 'exclusion', product, offer),humanDecisions))
   const budget = evaluateBudget(goal, offer)
   const mandatory = [...requirements, ...exclusions]; const mandatoryStatuses = [...mandatory.map((item) => item.status), ...(budget ? [budget.status] : [])]
   const eligibility = mandatoryStatuses.includes('failed') ? 'ineligible' : mandatoryStatuses.includes('unknown') ? 'eligible_with_unknowns' : 'eligible'
