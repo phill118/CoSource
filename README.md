@@ -63,3 +63,6 @@ React, TypeScript, Vite, ESLint, and Vitest.
 ## Licence
 
 Licensed under the [MIT License](LICENSE).
+## Supplier intelligence
+
+Supplier relationships are retained as provider-neutral, project-local evidence. See [canonical supplier intelligence](docs/architecture/supplier-intelligence.md) for identity, quotation, reliability, risk, and readiness rules.

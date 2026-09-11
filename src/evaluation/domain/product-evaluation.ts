@@ -2,6 +2,7 @@ import type { Money, ProductCluster, ProvenanceKind } from '../../commerce/domai
 import type { GoalCondition, GoalConditionKind } from '../../goals/domain/purchase-goal'
 import type { DecisionReadiness, EvidenceFreshness } from '../../evidence/domain/evidence'
 import type {CostAssessment} from '../../costing/domain/cost'
+import type {SupplierAssessment} from '../../suppliers/domain/supplier-intelligence'
 
 export type EvaluationStatus = 'satisfied' | 'failed' | 'unknown'
 export type EligibilityStatus = 'eligible' | 'eligible_with_unknowns' | 'ineligible'
@@ -20,6 +21,7 @@ export interface ProductEvaluation {
   evidence?:{observedAt?:string;freshness:EvidenceFreshness}
   readiness?:DecisionReadiness
   readinessReasons?:string[]
+  supplier?:SupplierAssessment
 }
 
 export type EvaluationProduct = Pick<ProductCluster, 'identity' | 'attributes' | 'options'>

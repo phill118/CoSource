@@ -80,3 +80,6 @@ Candidate evidence enters the single session registry only through explicit huma
 Pass 10 adds one provider-independent discovery-strategy compiler and evidence-gap model under `src/sourcing`. Explicit product focus drives the query; supported same-currency price, availability, ships-to, condition, and three documented taxonomy attributes project through the canonical catalog contract. Unsupported requirements and bulk quantity remain visible gaps. WebMCP real-market search uses the same gateway and stores at most ten agent candidates separately from human-retained evidence; inspect or compare is still the promotion boundary.
 
 Backend B1 consolidates browser orchestration under `src/application`. The application session controller is the sole owner of goal, market, sourcing, evidence, comparison selection, plan, proposals, and activity. React and WebMCP are adapters over the same use-cases. See [Application kernel](architecture/application-kernel.md).
+## Supplier intelligence
+
+Supplier intelligence is a kernel-owned durable domain. Canonical suppliers are separate from provider merchant identities and are connected only through explicit exact links; see [supplier intelligence](architecture/supplier-intelligence.md).

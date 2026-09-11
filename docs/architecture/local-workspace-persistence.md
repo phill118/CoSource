@@ -29,3 +29,6 @@ The IndexedDB adapter validates the current stored revision before using it for 
 Automated acceptance covers persistence/WebMCP ordering and the IndexedDB adapter contract, while production HTTP smoke covers the built application boundary. A native-browser IndexedDB save-and-reload acceptance was not recorded in R3R because no browser runtime was available; the in-memory adapter test is not represented as native-browser evidence.
 
 This is local-device persistence, not an account, organisation, tenant, cloud backup, or cross-device service. Browser storage can be deleted by the user or browser and is not encrypted by CoSource independently of the browser profile. No credentials, environment data, checkout state, payment data, provider envelopes, or executable instructions are stored. R4 adds no delete, archive, duplicate, sharing, import/export, clearing, cloud sync, account, organisation, tenant, checkout, payment, or purchase authority.
+## Supplier state
+
+Version-one payloads may omit supplier intelligence for backward compatibility. Current saves include the bounded supplier collection, so durable fingerprinting, CAS, restoration, and project switching cover it without provider access.
