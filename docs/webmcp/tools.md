@@ -1,5 +1,7 @@
 # WebMCP tools
 
+`evaluate_purchase_plan` also returns at most five current scenario summaries with exact selections, canonical readiness, supported cost and supplier results, evidence issue identities, trade-offs, and the input-basis fingerprint. This is a read projection only. The thirteen-tool boundary is unchanged and no tool can apply a scenario.
+
 Saved-project management is human-only and outside WebMCP. The surface remains exactly thirteen tools: switching aborts the old registration signal and binds a fresh set to the new active application; unresolved restoration exposes zero tools. There is no project listing, creation, rename, switch, migration, recovery, deletion, account, or tenant tool.
 
 Backend B1 makes WebMCP a transport adapter over the canonical application kernel. Tool handlers validate schemas and bound untrusted output, but all sourcing, evidence, evaluation, comparison, plan, and proposal operations delegate to the same live browser-session application used by React.

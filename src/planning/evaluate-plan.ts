@@ -61,15 +61,24 @@ export function evaluatePurchasePlan(goal: PurchaseGoal, plan: PurchasePlan, pro
       costLines.push(incompleteLine(line.id,`${line.productTitle}: no merchant offer is selected.`))
       continue
     }
+    const availabilityStrength=offer.availability.provenance.kind
+    if(offer.availability.state==='unavailable'&&availabilityStrength==='provider_explicit')lineReadiness.push({readiness:'blocked_by_known_failure',reasons:[`${line.productTitle}: the selected offer is explicitly unavailable.`]})
+    else if(offer.availability.state==='unknown'||availabilityStrength==='unknown')lineReadiness.push({readiness:'insufficient_evidence',reasons:[`${line.productTitle}: selected-offer availability is unknown.`]})
+    else if(availabilityStrength==='provider_inferred')lineReadiness.push({readiness:'verification_required',reasons:[`${line.productTitle}: selected-offer availability requires verification.`]})
     const supplier=supplierForOffer?.(offer)
     if(supplier){supplierAssessments.push(supplier);lineReadiness.push({readiness:supplier.readiness,reasons:supplier.reasons})}
     currencies.add(offer.price.currency)
     if (offer.merchant?.identity?.id) merchants.add(providerIdentityKey(offer.merchant.identity))
-    else if (offer.merchant?.domain) merchants.add(offer.merchant.domain)
-    if ((line.quantity ?? 1) > 1 && line.unitSemantics !== 'single_item') {
+    else lineReadiness.push({readiness:'insufficient_evidence',reasons:[`${line.productTitle}: an exact merchant identity is required for handoff.`]})
+    if (line.quantity===undefined) {
+      unresolved(`${line.productTitle}: quantity is unresolved; no unit count was assumed.`)
+      costLines.push(incompleteLine(line.id,`${line.productTitle}: quantity is unresolved.`))
+      continue
+    }
+    if (line.quantity > 1 && line.unitSemantics !== 'single_item') {
       unresolved(`${line.productTitle}: quantity semantics are unclear; price multiplication was not performed.`)
     }
-    try{costLines.push(offerCostLine({id:line.id,quantity:line.quantity??1,unitSemantics:line.unitSemantics},offer))}catch{const reason=`${line.productTitle}: selected offer cost evidence is invalid and requires verification.`;unresolved(reason);costLines.push(incompleteLine(line.id,reason))}
+    try{costLines.push(offerCostLine({id:line.id,quantity:line.quantity,unitSemantics:line.unitSemantics},offer))}catch{const reason=`${line.productTitle}: selected offer cost evidence is invalid and requires verification.`;unresolved(reason);costLines.push(incompleteLine(line.id,reason))}
   }
   let costAssessment;try{costAssessment=assessCosts(costLines,goal.budget)}catch(error){const reason=error instanceof Error?error.message:'Cost assessment failed';unresolved(reason);costAssessment=assessCosts(plan.lines.map(line=>incompleteLine(line.id,reason)),goal.budget)}
   unresolvedCosts.push(...costAssessment.verificationReasons)
@@ -83,7 +92,7 @@ export function evaluatePurchasePlan(goal: PurchaseGoal, plan: PurchasePlan, pro
         : mandatoryUnknowns ? 'has_unverified_requirements' : 'ready_on_known_evidence'
   const readiness=composeDecisionReadiness(mandatoryFailures||exclusionViolations||budget?.status==='failed'?'blocked_by_known_failure':undefined,stale||costEvidenceIncomplete||budget?.status==='unknown'?'insufficient_evidence':undefined,...lineReadiness.map(item=>item.readiness))
   const readinessReasons=[...new Set([...lineReadiness.flatMap(item=>item.reasons),...(stale?['The plan is bound to an earlier goal revision.']:[]),...(costEvidenceIncomplete?['One or more plan costs or offer selections are unresolved.']:[]),...(budget?.status==='failed'?[budget.reason]:[]),...(budget?.status==='unknown'?[budget.reason]:[])])].slice(0,10)
-  const evidenceAwareStatus=evidenceEntries.length&&readiness!=='ready_on_current_evidence'&&status==='ready_on_known_evidence'?'has_unverified_requirements':status
+  const evidenceAwareStatus=readiness==='blocked_by_known_failure'||readiness==='blocked_by_known_conflict'?'has_known_conflicts':evidenceEntries.length&&readiness!=='ready_on_current_evidence'&&status==='ready_on_known_evidence'?'has_unverified_requirements':status
   return { status:evidenceAwareStatus, stale, mandatoryFailures, exclusionViolations, mandatoryUnknowns, preferencesSatisfied,
     preferencesUnknown, merchantCount: merchants.size, currencies: [...currencies],
     knownSubtotals: costAssessment.currencyTotals.map(item=>item.baseSubtotal), unresolvedCosts:[...new Set(unresolvedCosts)], budget,costAssessment,readiness,readinessReasons,supplierAssessments }

@@ -70,3 +70,7 @@ Supplier relationships are retained as provider-neutral, project-local evidence.
 ## Evidence resolution
 
 Missing, stale, conflicting, verification-required, and unresolved-cost evidence is projected through one [canonical evidence-resolution model](docs/architecture/evidence-resolution.md). Human verification is explicit, project-scoped evidence and never rewrites provider observations.
+
+## Scenario planning
+
+CoSource derives up to five bounded [purchase-plan scenarios](docs/architecture/scenario-optimisation.md) from retained canonical evidence. Alternatives are evaluated by the existing plan evaluator, compared without a hidden score, and applied only by an explicit human action; they are not persisted as a second plan truth.

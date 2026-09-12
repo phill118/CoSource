@@ -87,3 +87,7 @@ Supplier intelligence is a kernel-owned durable domain. Canonical suppliers are 
 ## Evidence resolution
 
 R8 projects the existing ledger, evaluators, cost engine, and supplier intelligence into deterministic actionable issues. Human verification remains separate durable evidence under kernel authority; see [evidence resolution](architecture/evidence-resolution.md).
+
+## Scenario planning
+
+R9 adds a provider-neutral, deterministic [scenario projection](architecture/scenario-optimisation.md). It evaluates bounded alternative plan previews through the existing canonical evaluator, uses qualitative Pareto-style comparisons, and leaves application and purchasing authority with the human-controlled kernel.

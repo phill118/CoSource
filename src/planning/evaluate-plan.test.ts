@@ -32,6 +32,15 @@ describe('purchase plan domain', () => {
     expect(neutralOffer(product('one'))?.identity.id).toBe('one-o0')
     expect(neutralOffer(product('many', 'GBP', 2))).toBeUndefined()
   })
+  it.each([
+    ['unavailable','provider_explicit','blocked_by_known_failure'],
+    ['unknown','provider_explicit','insufficient_evidence'],
+    ['available','provider_inferred','verification_required'],
+  ] as const)('applies canonical %s/%s selected-offer availability', (state,kind,readiness) => {
+    const readinessGoal=createPurchaseGoal({id:'g',summary:'sized',requirements:[{id:'size',operator:'equals',field:'Size',value:'large'}],preferences:[],exclusions:[]}),base=completelyCosted(product('availability')),item={...base,attributes:{value:[{name:'Size',value:'large'}],provenance},offers:base.offers.map(offer=>({...offer,availability:{...offer.availability,state,provenance:{kind,provider}}}))}
+    expect(evaluatePurchasePlan(readinessGoal,planFor([line(item)]),[item]).readiness).toBe(readiness)
+  })
+  it('keeps absent quantity and merchant identity unresolved instead of treating them as one and zero',()=>{const base=completelyCosted(product('unknowns')),item={...base,offers:base.offers.map(offer=>({...offer,merchant:undefined}))},result=evaluatePurchasePlan(goal,planFor([line(item,{quantity:undefined})]),[item]);expect(result.readiness).toBe('insufficient_evidence');expect(result.merchantCount).toBe(0);expect(result.readinessReasons?.join(' ')).toMatch(/quantity.*unresolved|merchant identity/i);expect(result.costAssessment?.completeness).not.toBe('complete_exact')})
 })
 
 describe('whole-plan budget', () => {
