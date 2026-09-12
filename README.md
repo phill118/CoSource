@@ -2,6 +2,8 @@
 
 Evidence-governed resource resolution.
 
+The purchasing journey includes durable, human-supervised operational cases after plan approval. CoSource can prepare, validate, track fulfilment, record externally performed handoffs, and reconcile evidence-backed actual cost; it cannot contact a supplier, place an order, accept terms, or pay. See [supervised operations](docs/architecture/supervised-operations.md).
+
 The **CoSource Engine** is a shared, potentially standalone Resource Resolution Engine: it turns a defined external resource requirement into verified candidates and viable plans without taking ownership of the decision that created the requirement. **CoSource Purchasing** is the current commerce-focused product surface powered by that engine.
 
 ## Status

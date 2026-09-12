@@ -20,6 +20,7 @@ import type {ProjectPortfolio,PortfolioSnapshot} from './application/portfolio/p
 import {ProjectControls} from './application/portfolio/ProjectControls'
 import type {PersistentApplication} from './application/persistence/persistent-application'
 import type {ApplicationResult} from './application/cosource-application'
+import {OperationsPanel} from './operations/OperationsPanel'
 import {formatGoalCondition} from './goals/domain/condition-presentation'
 import {WorkspaceHeader} from './workspace/WorkspaceHeader'
 import {CollaborationWorkspace} from './workspace/CollaborationWorkspace'
@@ -75,6 +76,7 @@ function ProjectApp({persistent,portfolio,portfolioSnapshot}:{persistent:Persist
     comparison={comparison?.ok?comparison.value:undefined} comparisonIds={comparisonIds} pendingProposal={state.proposals.some(proposal=>proposal.status==='pending')}
     onClearComparison={application.clearComparison} onAddProduct={identity=>{application.addCandidateToPlan(identity)}} onRemoveLine={application.removePlanLine}
     onSetQuantity={application.setPlanLineQuantity} onSelectOffer={application.selectPlanLineOffer} onRebase={application.rebasePlan} onRefreshEvidence={application.refreshRetainedEvidence} onApplyScenario={application.applyScenario}/>}
+  {goal&&<OperationsPanel application={application} state={state}/>}
  </main><CollaborationWorkspace proposals={state.proposals} plan={state.plan} products={state.retainedProducts} onApprove={approve} onReject={reject} getReview={application.reviewPlanProposal} {...webmcp} activities={state.activities}/><footer><p>Catalog facts may be incomplete or provider-inferred. Verify details and final terms with the merchant before purchase. CoSource does not perform checkout or payment.</p></footer></div>
 }
 function App(){const[portfolio]=useState(createBrowserApplication),snapshot=useProjectPortfolio(portfolio);if(snapshot.status==='restoring')return <main className="persistence-gate" aria-busy="true"><h1>Restoring your CoSource workspace…</h1><p role="status">Checking this device for saved decision work.</p></main>;if(!snapshot.active)return <main className="persistence-gate"><h1>Saved projects need recovery</h1><p role="alert">{snapshot.message} Stored data has not been changed or deleted.</p>{snapshot.status!=='conflict'&&<button onClick={()=>void portfolio.retry()}>Try restoration again</button>}</main>;return <ProjectApp key={snapshot.active.application.getSnapshot().id} persistent={snapshot.active} portfolio={portfolio} portfolioSnapshot={snapshot}/>}

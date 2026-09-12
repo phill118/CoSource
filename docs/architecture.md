@@ -2,6 +2,8 @@
 
 This document records the implemented architecture through the purchasing foundation. The permanent product role and current ownership model are defined in [CoSource Resource Resolution Engine](architecture/resource-resolution-engine.md).
 
+Post-decision work is represented by the canonical, project-scoped [supervised operational case](architecture/supervised-operations.md). It references existing requirement, evidence, plan, supplier, scenario, and cost owners and preserves the human approval/external-execution boundary.
+
 R5 adds the [universal sourcing spine](architecture/universal-sourcing.md): canonical requirements are capability-negotiated into bounded source legs before provider access. The existing catalogue is an adapter to that spine, not a privileged workflow owner.
 
 R6 adds the [canonical cost engine](architecture/canonical-costing.md): selected-offer listing evidence is adapted into provider-neutral components, while landed-cost completeness, supplier-order aggregation and budget comparison remain application-owned and evidence-aware.

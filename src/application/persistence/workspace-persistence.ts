@@ -7,6 +7,7 @@ import type {GoalInterpretationProposal} from '../../goals/domain/goal-interpret
 import type {PlanChangeProposal} from '../../proposals/domain/plan-change-proposal'
 import type {SupplierRecord} from '../../suppliers/domain/supplier-intelligence'
 import type {HumanVerification} from '../../evidence/domain/evidence-resolution'
+import type {OperationalCase} from '../../operations/domain/operational-case'
 
 export const PERSISTED_WORKSPACE_FORMAT_VERSION=1 as const
 export const PERSISTED_ACTIVITY_LIMIT=20
@@ -15,7 +16,7 @@ export const PERSISTED_PROPOSAL_LIMIT=20
 export interface DurableWorkspaceState{
  id:string;revision:number;market:MarketContext;goalDraft:PurchaseGoalDraft;activeGoal?:PurchaseGoal
  retainedEvidence:ProductEvidenceEntry[];comparisonIds:ProviderIdentity[];plan:PurchasePlan
- suppliers?:SupplierRecord[];humanVerifications?:HumanVerification[];goalInterpretationProposals:GoalInterpretationProposal[];proposals:PlanChangeProposal[];activities:CoSourceSessionState['activities']
+ suppliers?:SupplierRecord[];humanVerifications?:HumanVerification[];operationalCases?:OperationalCase[];lastAppliedScenario?:CoSourceSessionState['lastAppliedScenario'];goalInterpretationProposals:GoalInterpretationProposal[];proposals:PlanChangeProposal[];activities:CoSourceSessionState['activities']
 }
 export interface PersistedWorkspaceEnvelope{formatVersion:typeof PERSISTED_WORKSPACE_FORMAT_VERSION;workspaceId:string;durableRevision:number;savedAt:string;market:MarketContext;payload:DurableWorkspaceState}
 export type SaveWorkspaceResult={ok:true;record:PersistedWorkspaceEnvelope}|{ok:false;reason:'conflict';currentRevision:number}
@@ -30,5 +31,5 @@ export type PersistenceLifecycle=
  |{status:'unavailable';retryCapability:'supported'|'unsupported';message:string}
  |{status:'conflict';durableRevision:number;storedRevision:number;message:string}
 
-export function durableProjection(state:CoSourceSessionState):DurableWorkspaceState{return{id:state.id,revision:state.revision,market:state.market,goalDraft:state.goalDraft,activeGoal:state.activeGoal,retainedEvidence:state.retainedEvidence,comparisonIds:state.comparisonIds,plan:state.plan,suppliers:state.suppliers,humanVerifications:state.humanVerifications,goalInterpretationProposals:state.goalInterpretationProposals,proposals:state.proposals,activities:state.activities}}
+export function durableProjection(state:CoSourceSessionState):DurableWorkspaceState{return{id:state.id,revision:state.revision,market:state.market,goalDraft:state.goalDraft,activeGoal:state.activeGoal,retainedEvidence:state.retainedEvidence,comparisonIds:state.comparisonIds,plan:state.plan,suppliers:state.suppliers,humanVerifications:state.humanVerifications,operationalCases:state.operationalCases,lastAppliedScenario:state.lastAppliedScenario,goalInterpretationProposals:state.goalInterpretationProposals,proposals:state.proposals,activities:state.activities}}
 export function durableFingerprint(state:DurableWorkspaceState){return JSON.stringify({...state,revision:0})}

@@ -1,0 +1,11 @@
+.operations-panel{margin-top:1rem;padding:1rem;border:1px solid var(--line);border-radius:1rem;background:var(--surface)}
+.operations-summary,.operations-lines article,.operations-facts>div{padding:.75rem;border:1px solid var(--line);border-radius:.75rem;background:var(--surface-strong)}
+.operations-id{overflow-wrap:anywhere;word-break:break-word}
+.operations-lines,.operations-facts,.operations-controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,15rem),1fr));gap:.75rem;margin-top:.75rem}
+.operations-facts{margin-bottom:1rem}.operations-facts dt{font-size:.8rem;color:var(--muted)}.operations-facts dd{margin:.25rem 0 0;font-weight:700}
+.operations-controls form{display:grid;gap:.5rem}.operations-controls label{display:grid;gap:.3rem}.operations-controls input{min-width:0;width:100%}
+.operations-controls button{align-self:end;white-space:normal}
+.operations-panel details{margin-top:1rem}.operations-panel li{overflow-wrap:anywhere}
+.operations-case-selector{display:grid;gap:.35rem;max-width:34rem;margin:.9rem 0}.operations-case-selector select{min-width:0;width:100%}.operations-line-controls{display:grid;gap:.65rem}.operations-line-controls form{display:grid;gap:.5rem}.operations-line-controls input,.operations-line-controls select{min-width:0;width:100%}
+.operations-handoff{display:grid;gap:.75rem;margin-top:.75rem;padding:.75rem;border:1px solid var(--line);border-radius:.75rem}.operations-handoff fieldset{display:grid;gap:.4rem;min-width:0}.operations-handoff fieldset label{display:flex;gap:.5rem;align-items:flex-start;overflow-wrap:anywhere}.operations-handoff fieldset input{flex:0 0 auto}
+@media(max-width:390px){.operations-panel{padding:.75rem}.operations-controls{grid-template-columns:1fr}.operations-controls button{width:100%}}
