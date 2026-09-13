@@ -1,0 +1,20 @@
+// @vitest-environment jsdom
+import {cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react'
+import '@testing-library/jest-dom/vitest'
+import {afterEach,describe,expect,it,vi} from 'vitest'
+import {createCoSourceApplication} from '../application/cosource-application'
+import type {PersistentApplication} from '../application/persistence/persistent-application'
+import type {PersistenceLifecycle} from '../application/persistence/workspace-persistence'
+import {composeWorkspaceHealth} from './domain/workspace-health'
+import {WorkspaceHealthPanel} from './WorkspaceHealthPanel'
+
+function fixture(){const application=createCoSourceApplication({market:{country:'GB',currency:'GBP'},catalog:{search:async()=>({products:[],messages:[],pagination:{hasMore:false}}),product:vi.fn()},makeId:()=> 'id',now:()=> '2026-09-12T12:00:00.000Z'});let lifecycle:PersistenceLifecycle={status:'ready'};const persistent={application,retry:vi.fn(),initialize:vi.fn(),dispose:vi.fn(),getPersistenceSnapshot:()=>lifecycle,subscribePersistence:()=>()=>{}} satisfies PersistentApplication;return{application,persistent,setLifecycle:(value:PersistenceLifecycle)=>{lifecycle=value}}}
+const composed=(application:ReturnType<typeof createCoSourceApplication>,persistence:{status:'ready'|'saving'|'save_error'|'conflict'|'unavailable'|'recovery_required';retrySupported:boolean;message?:string;access?:'gated'|'memory_preserved'})=>composeWorkspaceHealth(application.getWorkspaceHealth(),{persistence,webmcp:{status:'ready',toolCount:13,requiredToolCount:13}})
+
+afterEach(cleanup)
+
+describe('WorkspaceHealthPanel',()=>{
+ it('exposes accessible status, reason, and the exact primary route',()=>{const{application,persistent}=fixture(),health=composed(application,{status:'ready',retrySupported:false});render(<WorkspaceHealthPanel application={application} persistent={persistent} health={health}/>);expect(screen.getByRole('heading',{name:'Workspace health'})).toBeVisible();expect(screen.getAllByText(/No purchase goal is committed/)[0]).toBeVisible();expect(screen.getByRole('link',{name:'Go to safest next action'})).toHaveAttribute('href','#stage-define')})
+ it('shows one retry only when supported and announces the resulting lifecycle',async()=>{const{application,persistent,setLifecycle}=fixture(),unsupported=composed(application,{status:'unavailable',retrySupported:false,message:'Unavailable'}),supported=composed(application,{status:'unavailable',retrySupported:true,message:'Unavailable'}),{rerender}=render(<WorkspaceHealthPanel application={application} persistent={persistent} health={unsupported}/>);expect(screen.queryByRole('button',{name:'Retry local storage'})).not.toBeInTheDocument();rerender(<WorkspaceHealthPanel application={application} persistent={persistent} health={supported}/>);persistent.retry.mockImplementationOnce(async()=>setLifecycle({status:'save_error',durableRevision:1,message:'Still unavailable'}));fireEvent.click(screen.getByRole('button',{name:'Retry local storage'}));await waitFor(()=>expect(persistent.retry).toHaveBeenCalledOnce());expect(await screen.findByRole('alert')).toHaveTextContent('Still unavailable')})
+ it('disables the sole retry while busy and announces the successful resulting lifecycle',async()=>{const{application,persistent,setLifecycle}=fixture(),health=composed(application,{status:'save_error',retrySupported:true,message:'Save failed'});setLifecycle({status:'save_error',durableRevision:1,message:'Save failed'});let release!:()=>void;const gate=new Promise<void>(resolve=>{release=resolve});persistent.retry.mockImplementationOnce(async()=>{await gate;setLifecycle({status:'ready'})});render(<WorkspaceHealthPanel application={application} persistent={persistent} health={health}/>);const buttons=screen.getAllByRole('button',{name:'Retry save'});expect(buttons).toHaveLength(1);fireEvent.click(buttons[0]!);expect(buttons[0]).toBeDisabled();expect(screen.getByRole('status')).toHaveTextContent('Applying the selected repair');release();expect(await screen.findByText('Local persistence is ready.')).toHaveAttribute('role','status')})
+})

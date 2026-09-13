@@ -1,0 +1,18 @@
+import {useState} from 'react'
+import type {CoSourceApplication} from '../application/cosource-application'
+import type {PersistentApplication} from '../application/persistence/persistent-application'
+import type {MonitoringFinding,WorkspaceHealth} from './domain/workspace-health'
+import {monitoringRouteAnchors} from './monitoring-routes'
+import './WorkspaceHealthPanel.css'
+
+const label={ready:'Ready',attention_required:'Needs attention',blocked:'Blocked',unavailable:'Unavailable'}
+const persistenceMessage=(value:ReturnType<PersistentApplication['getPersistenceSnapshot']>)=>value.status==='ready'?'Local persistence is ready.':value.status==='saving'?'Local persistence is saving.':'message'in value?value.message:`Local persistence remains ${value.status.replaceAll('_',' ')}.`
+export function WorkspaceHealthPanel({application,persistent,health}:{application:CoSourceApplication;persistent:PersistentApplication;health:WorkspaceHealth}){
+ const[busy,setBusy]=useState<string>(),[feedback,setFeedback]=useState<{kind:'status'|'alert';text:string}>()
+ const execute=async(item:MonitoringFinding)=>{if(!item.repair)return;setBusy(item.id);setFeedback({kind:'status',text:'Applying the selected repair…'});if(item.repair.kind==='retry_persistence'){await persistent.retry();const resulting=persistent.getPersistenceSnapshot();setBusy(undefined);setFeedback({kind:resulting.status==='ready'||resulting.status==='saving'?'status':'alert',text:persistenceMessage(resulting)});return}const result=await application.executeMonitoringRepair({findingId:item.id,basisFingerprint:health.projectBasisFingerprint,targetId:item.repair.targetId,provider:item.repair.provider});setBusy(undefined);setFeedback(result.ok?{kind:'status',text:'Repair completed. Workspace health has been recalculated.'}:{kind:'alert',text:result.message})}
+ const first=health.findings[0],anchor=first&&monitoringRouteAnchors[first.route],persistence=persistent.getPersistenceSnapshot(),persistenceRepairLabel=persistence.status==='save_error'?'Retry save':'Retry local storage'
+ return <section className="workspace-health" aria-labelledby="workspace-health-title"><div className="workspace-health-summary"><div><p className="eyebrow">Project monitoring</p><h2 id="workspace-health-title">Workspace health</h2><p><strong>{label[health.status]}</strong> · {health.counts.blocking} blocking · {health.counts.attention} attention</p><p>{health.highestPriorityReason??'Canonical owners report that the current workspace is ready.'}</p></div>{anchor?<a className="button-link" href={anchor}>Go to safest next action</a>:<span>No action is currently required.</span>}</div>
+  {feedback&&<p role={feedback.kind} aria-live="polite">{feedback.text}</p>}
+  <details><summary>Review {health.findings.length} canonical {health.findings.length===1?'finding':'findings'}</summary><div className="health-findings">{health.findings.map(item=><article className="health-finding" key={item.id}><strong>{item.owner} · {item.blocking?'blocking':item.severity.replaceAll('_',' ')}</strong><p>{item.reason}</p><p><b>Why this matters:</b> {item.whyItMatters}</p><p><b>What you can do:</b> {item.route.replaceAll('_',' ')}{item.humanApprovalRequired?' with explicit human approval':''}.</p><small className="health-id">{item.id}</small>{item.repair&&<button disabled={Boolean(busy)} onClick={()=>void execute(item)}>{busy===item.id?'Repairing…':item.repair.kind==='retry_persistence'?persistenceRepairLabel:item.repair.kind.replaceAll('_',' ')}</button>}</article>)}</div></details>
+ </section>
+}

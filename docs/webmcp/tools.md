@@ -42,3 +42,6 @@ Current Chrome documentation describes WebMCP as Early Preview. For local Chrome
 ## Supplier information
 
 The existing read and evaluation tools may return bounded supplier summaries applicable through exact merchant identity links. The tool set remains 13 tools and exposes no supplier mutation, outreach, ordering, checkout, or payment authority.
+# Workspace health
+
+`get_goal_context` includes a bounded project-health summary: overall status, counts, basis fingerprint, and at most five highest-priority findings with owner, blocking state, reason, human route, and descriptive repair availability. It remains read-only. WebMCP cannot execute monitoring repairs, provider refresh, persistence retry, or operational rebase, and the registered surface remains exactly thirteen tools.

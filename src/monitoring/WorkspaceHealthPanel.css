@@ -1,0 +1,4 @@
+.workspace-health{margin:1rem clamp(1rem,7vw,7rem);padding:1rem;border:1px solid var(--line);border-radius:1rem;background:var(--surface)}
+.workspace-health-summary{display:flex;align-items:start;justify-content:space-between;gap:1rem}.workspace-health-summary h2{margin:.15rem 0}.workspace-health-summary p{max-width:50rem}
+.health-findings{display:grid;gap:.75rem;margin-top:.75rem}.health-finding{display:grid;gap:.35rem;min-width:0;padding:.8rem;border:1px solid var(--line);border-radius:.75rem;background:var(--surface-strong);overflow-wrap:anywhere}.health-finding p{margin:.15rem 0}.health-finding button{justify-self:start}.health-id{word-break:break-all;color:var(--muted)}
+@media(max-width:600px){.workspace-health{margin:1rem;padding:.75rem}.workspace-health-summary{display:grid}.workspace-health-summary .button-link,.health-finding button{width:100%;text-align:center}}

@@ -93,3 +93,7 @@ R8 projects the existing ledger, evaluators, cost engine, and supplier intellige
 ## Scenario planning
 
 R9 adds a provider-neutral, deterministic [scenario projection](architecture/scenario-optimisation.md). It evaluates bounded alternative plan previews through the existing canonical evaluator, uses qualitative Pareto-style comparisons, and leaves application and purchasing authority with the human-controlled kernel.
+
+## Workspace monitoring
+
+S8 adds a read-only [workspace monitoring projection](architecture/workspace-monitoring.md) over existing canonical owners. Repairs remain explicit, stale-safe, and delegated to existing evidence, operation, or persistence authority.

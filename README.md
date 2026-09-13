@@ -1,5 +1,7 @@
 # CoSource
 
+CoSource includes project-scoped workspace health monitoring that summarizes canonical goal, evidence, plan, operation, and persistence truth without introducing a competing evaluator. Supported repairs are explicit, human-triggered, and stale-safe.
+
 Evidence-governed resource resolution.
 
 The purchasing journey includes durable, human-supervised operational cases after plan approval. CoSource can prepare, validate, track fulfilment, record externally performed handoffs, and reconcile evidence-backed actual cost; it cannot contact a supplier, place an order, accept terms, or pay. See [supervised operations](docs/architecture/supervised-operations.md).
