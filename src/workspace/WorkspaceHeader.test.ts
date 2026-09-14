@@ -57,15 +57,25 @@ describe('workspace journey presentation', () => {
 
   it('signals draft changes while preserving the active journey action', () => {
     render(createElement(WorkspaceHeader, { state: state(), commitment: 'uncommitted_changes', webmcp: 'ready', toolCount: 13 }))
-    expect(screen.getByText('Draft changes need commitment')).toBeInTheDocument()
-    expect(screen.getByText(/active goal still controls sourcing/i)).toBeInTheDocument()
+    expect(screen.getByText('Review your draft changes')).toBeInTheDocument()
+    expect(screen.getByText(/committed brief still controls sourcing/i)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Discover products' })).toHaveAttribute('href', '#stage-discover')
+  })
+
+  it('describes the committed next action as sourcing rather than defining again', () => {
+    render(createElement(WorkspaceHeader, { state: state(), commitment: 'committed', webmcp: 'ready', toolCount: 13 }))
+    expect(screen.getByText('Continue from your active brief')).toBeInTheDocument()
+    expect(screen.getByText(/brief is active.*source matching options/i)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Discover products' })).toHaveAttribute('href', '#stage-discover')
   })
 
   it('positions the purchase surface over the shared engine without changing authority', () => {
     render(createElement(WorkspaceHeader, { state: base, commitment: 'no_active_goal', webmcp: 'unavailable', toolCount: 0 }))
     expect(screen.getByRole('link', { name: 'CoSource Purchasing home' })).toBeInTheDocument()
-    expect(screen.getByText('Powered by the CoSource Resource Resolution Engine')).toBeInTheDocument()
-    expect(screen.getByText(/You approve every goal and plan change/)).toBeInTheDocument()
+    expect(screen.getByText('Evidence-led purchasing')).toBeInTheDocument()
+    expect(screen.getByText(/only you can approve/i)).toBeInTheDocument()
+    expect(screen.getByText('No automatic purchasing')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Source with evidence. Decide with control.')
+    expect(screen.getByLabelText('Recommended next action')).toContainElement(screen.getByRole('link', { name: 'Define your goal' }))
   })
 })

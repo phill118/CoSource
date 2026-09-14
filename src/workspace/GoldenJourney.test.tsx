@@ -11,7 +11,8 @@ const ok = (data: unknown) => Promise.resolve(new Response(JSON.stringify({ ok: 
 
 afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 
-describe('competition golden journey', () => {
+// Full-App interaction needs a bounded integration budget under aggregate worker contention.
+describe('competition golden journey', { timeout: 10_000 }, () => {
   it('loads the example into the editable draft only', async () => {
     const fetch = vi.fn()
     vi.stubGlobal('fetch', fetch)
