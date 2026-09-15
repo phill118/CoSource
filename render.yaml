@@ -2,11 +2,10 @@ services:
   - type: web
     name: cosource
     runtime: node
+    plan: free
     buildCommand: npm ci --include=dev && npm run build
     startCommand: npm start
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
         value: production
-      - key: COSOURCE_UCP_AGENT_PROFILE
-        sync: false

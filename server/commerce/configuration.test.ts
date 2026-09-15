@@ -15,7 +15,7 @@ describe('server-only commerce configuration', () => {
 
   it('requires a controlled profile in production', () => {
     expect(() => loadServerCommerceConfiguration({ NODE_ENV: 'production' })).toThrow(
-      'COSOURCE_UCP_AGENT_PROFILE is required',
+      'COSOURCE_UCP_AGENT_PROFILE or RENDER_EXTERNAL_URL is required',
     )
   })
 
@@ -31,6 +31,41 @@ describe('server-only commerce configuration', () => {
       apiPort: 9000,
       apiHost: '0.0.0.0',
     })
+  })
+
+  it('derives the self-hosted profile from the parsed Render origin', () => {
+    expect(
+      loadServerCommerceConfiguration({
+        NODE_ENV: 'production',
+        RENDER_EXTERNAL_URL: 'https://cosource.onrender.com/hostile/path?ignored=yes#ignored',
+      }),
+    ).toMatchObject({
+      agentProfileUrl: 'https://cosource.onrender.com/.well-known/ucp',
+      apiHost: '0.0.0.0',
+    })
+  })
+
+  it('gives the explicit profile precedence over the Render origin', () => {
+    expect(
+      loadServerCommerceConfiguration({
+        NODE_ENV: 'production',
+        COSOURCE_UCP_AGENT_PROFILE: 'https://profiles.cosource.example/platform.json',
+        RENDER_EXTERNAL_URL: 'https://cosource.onrender.com',
+      }).agentProfileUrl,
+    ).toBe('https://profiles.cosource.example/platform.json')
+  })
+
+  it.each([
+    ['COSOURCE_UCP_AGENT_PROFILE', 'http://cosource.example/.well-known/ucp'],
+    ['COSOURCE_UCP_AGENT_PROFILE', 'https://user:password@cosource.example/.well-known/ucp'],
+    ['COSOURCE_UCP_AGENT_PROFILE', 'not a URL'],
+    ['RENDER_EXTERNAL_URL', 'http://cosource.onrender.com'],
+    ['RENDER_EXTERNAL_URL', 'https://user:password@cosource.onrender.com/path'],
+    ['RENDER_EXTERNAL_URL', 'not a URL'],
+  ])('rejects unsafe %s value', (name, value) => {
+    expect(() =>
+      loadServerCommerceConfiguration({ NODE_ENV: 'production', [name]: value }),
+    ).toThrow()
   })
 
   it('prefers the hosting PORT while preserving the legacy development override', () => {

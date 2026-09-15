@@ -3,6 +3,7 @@ import { join } from 'node:path'
 
 const forbiddenBrowserValues = [
   'COSOURCE_UCP_AGENT_PROFILE',
+  'RENDER_EXTERNAL_URL',
   'shopify.dev/ucp/agent-profiles',
   'catalog.shopify.com/api/ucp/mcp',
 ]

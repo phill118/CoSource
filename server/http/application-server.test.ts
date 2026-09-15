@@ -5,6 +5,7 @@ import { join, resolve } from 'node:path'
 import type { AddressInfo } from 'node:net'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createApplicationServer, type GatewayHandler } from './application-server'
+import { COSOURCE_UCP_AGENT_PROFILE } from '../commerce/agent-profile'
 
 const temporaryRoots: string[] = []
 
@@ -42,7 +43,7 @@ async function withServer(
 
 async function rawRequest(origin: string, path: string, method = 'GET') {
   const { port } = new URL(origin)
-  return await new Promise<{ status: number; contentType: string; body: string; nosniff: string }>(
+  return await new Promise<{ status: number; contentType: string; cacheControl: string; body: string; nosniff: string; csp: string }>(
     (resolve, reject) => {
       const request = httpRequest(
         { host: '127.0.0.1', port, path, method },
@@ -53,8 +54,10 @@ async function rawRequest(origin: string, path: string, method = 'GET') {
             resolve({
               status: response.statusCode ?? 0,
               contentType: String(response.headers['content-type'] ?? ''),
+              cacheControl: String(response.headers['cache-control'] ?? ''),
               body: Buffer.concat(chunks).toString('utf8'),
               nosniff: String(response.headers['x-content-type-options'] ?? ''),
+              csp: String(response.headers['content-security-policy'] ?? ''),
             }),
           )
         },
@@ -103,6 +106,56 @@ describe('production application server', () => {
       expect(csp).not.toMatch(/script-src[^;]*\*/)
       expect(index.headers.get('x-content-type-options')).toBe('nosniff')
     })
+  })
+
+  it('serves the exact catalog-only UCP platform profile for GET and HEAD', async () => {
+    await withServer(async (origin) => {
+      const get = await rawRequest(origin, '/.well-known/ucp')
+      expect(get).toMatchObject({
+        status: 200,
+        contentType: 'application/json; charset=utf-8',
+        cacheControl: 'public, max-age=300',
+        nosniff: 'nosniff',
+      })
+      expect(get.csp).toContain("default-src 'self'")
+      expect(JSON.parse(get.body)).toEqual(COSOURCE_UCP_AGENT_PROFILE)
+
+      const profile = JSON.parse(get.body) as typeof COSOURCE_UCP_AGENT_PROFILE
+      expect(profile.ucp.version).toBe('2026-04-08')
+      expect(profile.ucp.services['dev.ucp.shopping'][0].transport).toBe('mcp')
+      expect(Object.keys(profile.ucp.capabilities).sort()).toEqual([
+        'dev.shopify.catalog.global',
+        'dev.ucp.shopping.catalog.lookup',
+        'dev.ucp.shopping.catalog.search',
+      ])
+      expect(profile.ucp.payment_handlers).toEqual({})
+      expect(Object.keys(profile.ucp.capabilities).join(' ')).not.toMatch(
+        /checkout|cart|order|fulfillment|fulfilment|discount|buyer_consent|payment/i,
+      )
+
+      const head = await rawRequest(origin, '/.well-known/ucp', 'HEAD')
+      expect(head).toMatchObject({
+        status: 200,
+        contentType: get.contentType,
+        cacheControl: get.cacheControl,
+        body: '',
+      })
+    })
+  })
+
+  it('rejects unsupported profile methods without SPA or gateway fallback', async () => {
+    const profileGateway = vi.fn(gateway)
+    await withServer(async (origin) => {
+      const response = await rawRequest(origin, '/.well-known/ucp', 'POST')
+      expect(response).toMatchObject({
+        status: 405,
+        contentType: 'application/json; charset=utf-8',
+        nosniff: 'nosniff',
+      })
+      expect(response.body).toContain('method_not_allowed')
+      expect(response.body).not.toContain('CoSource shell')
+      expect(profileGateway).not.toHaveBeenCalled()
+    }, profileGateway)
   })
 
   it('serves the declared SVG favicon for GET and HEAD', async () => {

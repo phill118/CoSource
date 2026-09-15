@@ -42,7 +42,7 @@ npm run test
 npm run build
 ```
 
-Run `dev:api` and `dev` in separate terminals. The API binds to `127.0.0.1:8787`; Vite proxies only `/api` to it. The Shopify-hosted profile is a development fallback. Production requires the server-only `COSOURCE_UCP_AGENT_PROFILE` environment variable.
+Run `dev:api` and `dev` in separate terminals. The API binds to `127.0.0.1:8787`; Vite proxies only `/api` to it. The Shopify-hosted profile is a development fallback. Production requires either the explicit server-only `COSOURCE_UCP_AGENT_PROFILE` override or Render's HTTPS `RENDER_EXTERNAL_URL`.
 
 ## Production runtime
 
@@ -52,9 +52,9 @@ Run `dev:api` and `dev` in separate terminals. The API binds to `127.0.0.1:8787`
 npm start
 ```
 
-The service serves the SPA, `/health`, and the same-origin `/api/catalog/*` gateway from one origin. Hosting platforms supply `PORT`; production binds to `0.0.0.0`. Set `NODE_ENV=production` and an HTTPS `COSOURCE_UCP_AGENT_PROFILE` in the server environment. Do not expose this configuration through `VITE_` variables or browser requests.
+The service serves the SPA, `/health`, the public `/.well-known/ucp` platform profile, and the same-origin `/api/catalog/*` gateway from one origin. The profile declares UCP `2026-04-08` catalog search, catalog lookup, and the minimum Shopify Global Catalog extension only; it declares no cart, checkout, payment, order, or transaction execution. Hosting platforms supply `PORT`; production binds to `0.0.0.0`. Other production hosts set an HTTPS `COSOURCE_UCP_AGENT_PROFILE` override. Neither this URL nor hosting configuration is exposed through `VITE_` variables or browser requests.
 
-`render.yaml` provides a portable Render deployment definition pinned to the supported Node 22 range. Its build command is `npm ci --include=dev && npm run build`; the explicit npm option keeps the required build toolchain available even when the hosting environment sets production mode. Connect the repository, provide `COSOURCE_UCP_AGENT_PROFILE` in the service environment, deploy, and verify `/health` before opening the application. Other Node hosts can use the same clean-install, build, and start commands.
+`render.yaml` provides a free Render web-service definition pinned to the supported Node 22 range. Its build command is `npm ci --include=dev && npm run build`; the explicit npm option keeps the required build toolchain available even when the hosting environment sets production mode. Render supplies `RENDER_EXTERNAL_URL`, from whose parsed HTTPS origin CoSource derives `<origin>/.well-known/ucp`; no profile prompt or `PORT` override is required. Deploy and verify `/health` and `/.well-known/ucp` before opening the application. Other Node hosts can use the same clean-install, build, and start commands with `COSOURCE_UCP_AGENT_PROFILE` set to their controlled public HTTPS profile URL.
 
 For native WebMCP review, open the deployed HTTPS URL in a secure Chromium environment with WebMCP support. The human interface remains usable when WebMCP is unavailable. Goal draft and commitment, retained evidence, comparison identities, plan, proposals, bounded activity, market, and workspace identity survive reload through local IndexedDB when storage is healthy. Discovery results, request and refresh lifecycle, React presentation, WebMCP registration, network objects, and promises reset. CoSource Purchasing does not perform cart, checkout, payment, or purchase execution.
 
