@@ -12,6 +12,7 @@ dist
 dist-ssr
 dist-server
 coverage
+.wrangler
 *.local
 .env
 .env.*
