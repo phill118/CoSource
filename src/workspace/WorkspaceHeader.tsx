@@ -1,14 +1,17 @@
-import type { CoSourceSessionState, GoalCommitmentStatus } from '../application/cosource-application'
-import type { WebMCPStatus } from '../webmcp/use-webmcp'
-import { deriveJourneySteps, journeyAction } from './journey'
+import type {ReactNode} from 'react'
+import type {CoSourceSessionState,GoalCommitmentStatus} from '../application/cosource-application'
+import type {WebMCPStatus} from '../webmcp/use-webmcp'
+import {deriveJourneySteps,type JourneyStepId} from './journey'
 import './WorkspaceHeader.css'
 
-const webmcpLabels: Record<WebMCPStatus, string> = { unavailable: 'Agent tools unavailable', registering: 'Agent tools connecting', ready: 'Agent tools ready', error: 'Agent tools unavailable' }
+const webmcpLabels:Record<WebMCPStatus,string>={unavailable:'WebMCP unavailable in this browser',registering:'Agent tools connecting',ready:'WebMCP ready',error:'WebMCP registration failed'}
+export type WorkspaceView='overview'|JourneyStepId|'intelligence'
 
-export function WorkspaceHeader({ state, commitment, webmcp, toolCount }: { state: CoSourceSessionState; commitment: GoalCommitmentStatus; webmcp: WebMCPStatus; toolCount: number }) {
-  const steps = deriveJourneySteps(state)
-  const action = journeyAction(state)
-  const nextTitle = commitment === 'committed' ? 'Continue from your active brief' : commitment === 'uncommitted_changes' ? 'Review your draft changes' : 'Create your buying brief'
-  const nextCopy = commitment === 'committed' ? 'Your buying brief is active. Source matching options or continue the evidence-led decision journey.' : commitment === 'uncommitted_changes' ? 'Your committed brief still controls sourcing until you approve this draft.' : 'Set the outcome, constraints and budget. Nothing is ordered when you commit it.'
-  return <><header className="product-header"><div className="product-brand"><a href="/" aria-label="CoSource Purchasing home">CoSource</a><span>Evidence-led purchasing</span></div><div className="header-context" aria-label="Workspace context"><span>{state.market.country} · {state.market.currency}</span><span className={`readiness readiness-${webmcp}`}>{webmcpLabels[webmcp]}{webmcp === 'ready' ? ` · ${toolCount}` : ''}</span></div></header><section className="welcome" aria-labelledby="welcome-title"><div><p className="eyebrow">From need to decision-ready plan</p><h1 id="welcome-title">Source with evidence. Decide with control.</h1><p>CoSource turns a buying need into a clear, multi-merchant purchase plan. Agent research stays separate from the goals, evidence and plan changes that only you can approve.</p><ul className="trust-strip" aria-label="CoSource safeguards"><li>Real catalogue evidence</li><li>Human-approved changes</li><li>No automatic purchasing</li></ul></div><aside aria-label="Recommended next action"><span className="action-kicker">Your next step</span><strong>{nextTitle}</strong><p>{nextCopy}</p><a className="button-link" href={action.href}>{action.label}</a></aside></section><nav className="journey-nav" aria-label="Purchase journey"><ol>{steps.map((step, index) => <li key={step.id} data-state={step.state}><a href={`#stage-${step.id}`} aria-current={step.state === 'current' ? 'step' : undefined}><span aria-hidden="true">{step.state === 'ready' ? '✓' : index + 1}</span><strong>{step.label}</strong><small>{step.hint}</small></a></li>)}</ol></nav></>
+export function WorkspaceHeader({state,webmcp,toolCount,projectControls,persistenceStatus}:{state:CoSourceSessionState;commitment:GoalCommitmentStatus;webmcp:WebMCPStatus;toolCount:number;projectControls?:ReactNode;persistenceStatus?:ReactNode}){
+ return <header className="product-header"><div className="product-brand"><a href="/" aria-label="CoSource Purchasing home">CoSource</a><span>Procurement intelligence</span></div>{projectControls}<div className="header-context" aria-label="Global workspace context"><span>{state.market.country} / {state.market.currency}</span>{persistenceStatus}<span className={`readiness readiness-${webmcp}`}><span>{webmcpLabels[webmcp]}</span>{webmcp==='ready'&&<b>{toolCount} registered WebMCP tools</b>}</span></div></header>
+}
+
+export function WorkspaceNavigation({state,activeView,onNavigate}:{state:CoSourceSessionState;activeView:WorkspaceView;onNavigate:(view:WorkspaceView,href:string)=>void}){
+ const steps=deriveJourneySteps(state),items=[{id:'overview' as const,label:'Overview',state:'ready' as const,href:'#workspace-overview'},...steps.map(step=>({...step,href:`#stage-${step.id}`})),{id:'intelligence' as const,label:'Decision intelligence',state:'waiting' as const,href:'#decision-intelligence'}]
+ return <nav className="journey-nav" aria-label="Workspace navigation"><ol>{items.map(item=><li key={item.id} data-state={item.state}><a href={item.href} aria-label={item.label} aria-current={activeView===item.id?'page':undefined} onClick={()=>onNavigate(item.id,item.href)}><span aria-hidden="true"/><strong>{item.label}</strong>{'hint'in item&&<small>{item.hint}</small>}</a></li>)}</ol></nav>
 }

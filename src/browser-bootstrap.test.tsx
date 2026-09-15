@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { screen,waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import '@testing-library/jest-dom/vitest'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
@@ -39,6 +40,8 @@ describe('browser bootstrap', () => {
     expect(z.config().jitless).toBe(true)
     expect(document.body).toHaveTextContent('Local persistence is unavailable in this browser')
     expect(screen.queryByRole('button',{name:'Retry local storage'})).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('link',{name:'Discover'}))
+    await userEvent.click(screen.getByText('Exploratory catalog search'))
     expect(document.querySelector('#product-search')).toBeInTheDocument()
   })
 })

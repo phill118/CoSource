@@ -5,7 +5,7 @@ import { createElement } from 'react'
 import '@testing-library/jest-dom/vitest'
 import { createCoSourceApplication, type CoSourceSessionState } from '../application/cosource-application'
 import type { ProductCluster } from '../commerce/domain/commerce'
-import { WorkspaceHeader } from './WorkspaceHeader'
+import { WorkspaceHeader, WorkspaceNavigation } from './WorkspaceHeader'
 import { deriveJourneySteps, journeyAction } from './journey'
 
 const catalog = { search: async () => ({ products: [], messages: [], pagination: { hasMore: false } }), product: async () => { throw new Error('unused') } }
@@ -43,39 +43,33 @@ describe('workspace journey presentation', () => {
     expect(journeyAction(pending)).toEqual({ label: 'Review agent activity and proposals', href: '#stage-review' })
   })
 
-  it.each([
-    ['Define your goal', base],
-    ['Discover products', state()],
-    ['Complete comparison', state({ humanDiscovery: { ...base.humanDiscovery, status: 'ready', candidates: [candidate('a')] } })],
-    ['Build purchase plan', state({ humanDiscovery: { ...base.humanDiscovery, status: 'ready', candidates: [candidate('a'), candidate('b')] }, comparisonIds: [identity('a'), identity('b')] })],
-    ['Review agent activity and proposals', state({ humanDiscovery: { ...base.humanDiscovery, status: 'ready', candidates: [candidate('a'), candidate('b')] }, comparisonIds: [identity('a'), identity('b')], plan: { ...base.plan, lines: [{}] } as CoSourceSessionState['plan'] })],
-  ])('renders the dynamic next action %s', (label, session) => {
-    render(createElement(WorkspaceHeader, { state: session as CoSourceSessionState, commitment: session === base ? 'no_active_goal' : 'committed', webmcp: 'unavailable', toolCount: 0 }))
-    expect(screen.getByRole('link', { name: label })).toBeInTheDocument()
-    expect(screen.getAllByRole('link').filter((link) => link.getAttribute('aria-current') === 'step')).toHaveLength(1)
-  })
-
-  it('signals draft changes while preserving the active journey action', () => {
-    render(createElement(WorkspaceHeader, { state: state(), commitment: 'uncommitted_changes', webmcp: 'ready', toolCount: 13 }))
-    expect(screen.getByText('Review your draft changes')).toBeInTheDocument()
-    expect(screen.getByText(/committed brief still controls sourcing/i)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Discover products' })).toHaveAttribute('href', '#stage-discover')
-  })
-
-  it('describes the committed next action as sourcing rather than defining again', () => {
-    render(createElement(WorkspaceHeader, { state: state(), commitment: 'committed', webmcp: 'ready', toolCount: 13 }))
-    expect(screen.getByText('Continue from your active brief')).toBeInTheDocument()
-    expect(screen.getByText(/brief is active.*source matching options/i)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Discover products' })).toHaveAttribute('href', '#stage-discover')
-  })
-
-  it('positions the purchase surface over the shared engine without changing authority', () => {
+  it('keeps the global header limited to project-wide state', () => {
     render(createElement(WorkspaceHeader, { state: base, commitment: 'no_active_goal', webmcp: 'unavailable', toolCount: 0 }))
     expect(screen.getByRole('link', { name: 'CoSource Purchasing home' })).toBeInTheDocument()
-    expect(screen.getByText('Evidence-led purchasing')).toBeInTheDocument()
-    expect(screen.getByText(/only you can approve/i)).toBeInTheDocument()
-    expect(screen.getByText('No automatic purchasing')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Source with evidence. Decide with control.')
-    expect(screen.getByLabelText('Recommended next action')).toContainElement(screen.getByRole('link', { name: 'Define your goal' }))
+    expect(screen.getByText('Procurement intelligence')).toBeInTheDocument()
+    expect(screen.getByText('GB / GBP')).toBeInTheDocument()
+    expect(screen.getByText('WebMCP unavailable in this browser')).toBeInTheDocument()
+    expect(screen.queryByText(/tools available/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/registered WebMCP tools/i)).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading')).not.toBeInTheDocument()
+  })
+
+  it('shows the exact registered tool count only when WebMCP is ready', () => {
+    render(createElement(WorkspaceHeader, { state: base, commitment: 'no_active_goal', webmcp: 'ready', toolCount: 13 }))
+    expect(screen.getByText('13 registered WebMCP tools')).toBeInTheDocument()
+    expect(screen.queryByText(/real-market search/i)).not.toBeInTheDocument()
+  })
+
+  it('presents registration as connecting without claiming availability', () => {
+    render(createElement(WorkspaceHeader, { state: base, commitment: 'no_active_goal', webmcp: 'registering', toolCount: 0 }))
+    expect(screen.getByText('Agent tools connecting')).toBeInTheDocument()
+    expect(screen.queryByText(/tools available|registered WebMCP tools/i)).not.toBeInTheDocument()
+  })
+
+  it('renders one restrained workflow rail from canonical journey state', () => {
+    render(createElement(WorkspaceNavigation,{state:state(),activeView:'discover',onNavigate:()=>undefined}))
+    expect(screen.getAllByRole('link')).toHaveLength(7)
+    expect(screen.getByRole('link',{name:/Discover/})).toHaveAttribute('aria-current','page')
+    expect(screen.getByRole('link',{name:/Define/}).closest('li')).toHaveAttribute('data-state','ready')
   })
 })

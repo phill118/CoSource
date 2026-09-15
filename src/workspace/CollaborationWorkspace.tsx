@@ -1,19 +1,17 @@
-import type { ApplicationActivity, ApplicationResult } from '../application/cosource-application'
-import type { ProductCluster } from '../commerce/domain/commerce'
-import type { PlanEvaluation, PurchasePlan } from '../planning/domain/purchase-plan'
-import type { PlanChangeProposal } from '../proposals/domain/plan-change-proposal'
-import { ProposalReviewPanel } from '../proposals/ProposalReviewPanel'
-import type { WebMCPStatus } from '../webmcp/use-webmcp'
-import { WebMCPStatusPanel } from '../webmcp/WebMCPStatusPanel'
+import {useState} from 'react'
+import type {ApplicationActivity,ApplicationResult} from '../application/cosource-application'
+import type {ProductCluster} from '../commerce/domain/commerce'
+import type {PlanEvaluation,PurchasePlan} from '../planning/domain/purchase-plan'
+import type {PlanChangeProposal} from '../proposals/domain/plan-change-proposal'
+import {ProposalReviewPanel} from '../proposals/ProposalReviewPanel'
+import type {WebMCPStatus} from '../webmcp/use-webmcp'
 
-export function CollaborationWorkspace({ proposals, plan, products, onApprove, onReject, getReview, status, toolCount, activities }: {
-  proposals: PlanChangeProposal[]; plan: PurchasePlan; products: ProductCluster[]; onApprove: (id: string) => void; onReject: (id: string) => void
-  getReview: (id: string) => ApplicationResult<{ status: PlanChangeProposal['status']; before: PlanEvaluation; after?: PlanEvaluation }>
-  status: WebMCPStatus; toolCount: number; activities: ApplicationActivity[]
-}) {
-  return <section id="stage-review" className="collaboration-workspace" aria-labelledby="collaboration-title">
-    <div className="collaboration-heading"><p className="eyebrow">Review · Human approval and agent activity</p><h2 id="collaboration-title">Agent collaboration</h2></div>
-    {proposals.length > 0 ? <ProposalReviewPanel proposals={proposals} plan={plan} products={products} onApprove={onApprove} onReject={onReject} getReview={getReview}/> : <div className="proposal-empty"><strong>No agent plan proposals this session.</strong><span>Agents may propose bounded plan changes; only you can approve and apply them.</span></div>}
-    <WebMCPStatusPanel status={status} toolCount={toolCount} activities={activities}/>
-  </section>
+type ReviewView='proposals'|'agent'|'human'|'applied'
+const statusLabel:Record<WebMCPStatus,string>={unavailable:'WebMCP unavailable in this browser',registering:'WebMCP registering',ready:'WebMCP ready',error:'WebMCP registration failed'}
+const humanKinds=new Set(['goal_committed','proposal_rejected','interpretation_rejected','interpretation_adopted','scenario_applied','operational_case_opened','operational_case_updated'])
+
+export function CollaborationWorkspace({proposals,plan,products,onApprove,onReject,getReview,status,toolCount,activities}:{proposals:PlanChangeProposal[];plan:PurchasePlan;products:ProductCluster[];onApprove:(id:string)=>void;onReject:(id:string)=>void;getReview:(id:string)=>ApplicationResult<{status:PlanChangeProposal['status'];before:PlanEvaluation;after?:PlanEvaluation}>;status:WebMCPStatus;toolCount:number;activities:ApplicationActivity[]}){
+ const[view,setView]=useState<ReviewView>('proposals'),pending=proposals.filter(proposal=>proposal.status==='pending'),applied=activities.filter(activity=>activity.kind==='proposal_applied'),human=activities.filter(activity=>activity.kind!=='proposal_applied'&&(activity.toolName.startsWith('human_')||humanKinds.has(activity.kind))),agent=activities.filter(activity=>activity.kind!=='proposal_applied'&&!activity.toolName.startsWith('human_')&&!humanKinds.has(activity.kind))
+ const activityList=(items:ApplicationActivity[],empty:string)=>items.length?<ol className="review-activity">{items.map(activity=><li key={activity.id}><time dateTime={activity.timestamp}>{new Date(activity.timestamp).toLocaleTimeString()}</time><strong>{activity.toolName}</strong><span>{activity.summary}</span></li>)}</ol>:<p className="muted">{empty}</p>
+ return <section id="stage-review" className="collaboration-workspace" aria-labelledby="collaboration-title"><div className="collaboration-heading"><h2 id="collaboration-title">Review collaboration</h2><p><strong>{statusLabel[status]} · {toolCount} tools.</strong> WebMCP is the shared read/proposal surface; human approval remains required.</p></div><nav className="review-tabs" aria-label="Review areas">{([['proposals','Pending proposals'],['agent','Agent activity'],['human','Human decisions'],['applied','Applied changes']] as const).map(([id,label])=><button type="button" key={id} aria-pressed={view===id} onClick={()=>setView(id)}>{label}{id==='proposals'&&pending.length?' · action required':''}</button>)}</nav><div className="review-panel">{view==='proposals'&&(pending.length?<ProposalReviewPanel proposals={pending} plan={plan} products={products} onApprove={onApprove} onReject={onReject} getReview={getReview}/>:<div className="proposal-empty"><strong>No pending agent plan proposals.</strong><span>Historical proposal outcomes remain available in the canonical review record.</span></div>)}{view==='agent'&&activityList(agent,'No agent or tool activity this session.')}{view==='human'&&activityList(human,'No human decisions recorded this session.')}{view==='applied'&&activityList(applied,'No agent proposal changes have been applied.')}</div></section>
 }
